@@ -114,7 +114,8 @@ When told to "start working" (or similar):
    - `refining` → ea-coder or researcher, as appropriate to what's being
      changed
    - `demo_failed` → researcher (review)
-   - `approved_demo` / `approved_live` → live-manager
+   - `approved_demo` / `approved_live` → live-manager **— except on this
+     machine, see the "Two-machine split" note below**
 3. After each subagent finishes and updates the registry, immediately
    check what's next for that strategy and continue — do not wait for the
    user — **until** a strategy reaches a status requiring manual approval
@@ -135,6 +136,34 @@ This auto-advance behavior is a deliberate choice (confirmed with the user
 manual review. That per-version gate is now delegated to Researcher's own
 judgment inside the loop above — the user is no longer asked to approve
 each backtest iteration, only the demo/live capital decisions.
+
+### Two-machine split (as of 2026-09-25)
+
+This repo now runs on two machines with different jobs, synced through
+this git remote (`github.com/treetechsuman/trading-agent`) — see
+`REBUILD.md` for the environment details of each:
+
+- **This machine (dev)**: researcher → ea-coder → backtester loop only.
+  Never dispatch live-manager here, never attach/start an EA on a chart,
+  never run `terminal64.exe` in live/chart mode — Strategy Tester
+  backtests are fine. When a strategy reaches `approved_demo` /
+  `approved_live`, **stop there and commit + push** (only when the user
+  explicitly asks for the commit/push itself, per the repo conventions
+  below) rather than dispatching live-manager locally.
+- **The live server (deploy)**: pulls from git, runs live-manager to
+  actually attach/monitor/kill-switch EAs against the real account, and
+  pushes its own registry/lessons updates back (see `e20b2a2`'s commit
+  for a worked example: registry status `approved_live → live`,
+  `live-manager/lessons.md` updated, `scripts/common.py`'s `MT5_DATA_DIR`
+  pointed at its own data folder).
+- **`scripts/common.py`'s `MT5_DATA_DIR`/`TERMINAL_EXE`/`METAEDITOR_EXE`
+  are machine-specific on purpose** — each machine keeps its own value
+  locally via `git update-index --skip-worktree scripts/common.py` after
+  setting it correctly for that machine, so routine pulls don't fight
+  over it or accidentally commit the wrong machine's path.
+- Registry statuses `live`/`demo` (set by the server's live-manager) are
+  terminal from this machine's point of view — don't treat them as
+  something to re-dispatch or redeploy locally.
 
 ## Status lifecycle (`strategies/registry.json`)
 
