@@ -375,6 +375,33 @@ the evidence is genuinely borderline. Either way, `live_candidate` /
   version subfolders — see `strategies/day_trading/gotobi/STRATEGY.md` or
   `strategies/day_trading/london_range_fade/STRATEGY.md`.
 
+## Repo / environment conventions (added 2026-09-26, when this project
+was first put under version control)
+
+- **This project is a git repo** (`main` branch, remote at
+  `github.com/treetechsuman/trading-agent`, **public**). See
+  `REBUILD.md` for the full environment/dependency/setup picture — read
+  that file, not just this section, before setting this project up on a
+  new machine.
+- **The real MT5 account login never gets committed.** It lives in
+  `scripts/local_settings.py` (gitignored; template at
+  `scripts/local_settings.example.py`). Every `config.ini` and every
+  mention of the account number in prose (this file included) uses the
+  literal placeholder `YOUR_ACCOUNT_LOGIN` instead. If you ever see the
+  real number about to go into a new committed file, redact it the same
+  way before committing — this was a deliberate, repo-wide pass done on
+  2026-09-26, not a one-off.
+- **`scripts/common.py`'s `TERMINAL_EXE`/`METAEDITOR_EXE`/`MT5_DATA_DIR`
+  constants are machine-specific hardcoded paths, not secrets** — they'll
+  need editing on any different install, but there's no need to redact
+  them (they contain no account-identifying information, just this
+  machine's local folder layout).
+- **Only commit when explicitly asked** (standard git-safety practice,
+  not specific to this project) — this repo holds real trading strategy
+  logic and a live-account-adjacent history; treat every commit as
+  something the user should knowingly approve, same as any
+  `approved_demo`/`approved_live` registry change.
+
 ## Scripts
 All four scripts live in `scripts/` and take a version folder path
 (e.g. `strategies/day_trading/<name>/v1`) as their main argument.

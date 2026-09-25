@@ -8,3 +8,6 @@ __pycache__/
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# Claude Code local runtime state (session id/pid, machine-specific, regenerated automatically)
+.claude/scheduled_tasks.lock
