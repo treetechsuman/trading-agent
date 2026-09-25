@@ -1,0 +1,31 @@
+{
+  "id": "day_trading/wm_fix_reversal",
+  "version": "v1",
+  "category": "day_trading",
+  "origin": "Researcher-designed, 2026-09-22 -- chosen to stay in the same category (real, documented institutional-flow event) that made gotobi work well, rather than another generic technical-pattern strategy like london_orb/london_range_fade.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "The WM/Reuters 4pm London FX fix is the benchmark rate index funds, custodians, and pension funds use to execute large currency rebalancing trades. The concentrated execution creates a documented volatility spike bracketing 16:00:00 London time, which commonly overshoots and partially reverts once the flow clears. Unlike gotobi, the fix's direction varies day to day with that month's rebalancing flow, so this strategy measures the spike and fades whichever direction it went, rather than trading a fixed direction.",
+  "broker_clock_conversion": "16:00:00 London time = 18:00:00 this broker's server time, CONSTANT year-round (EET/EEST currently shifts DST on the same calendar dates as UK/EU clocks, so the 2h gap to London never changes) -- see dates.md.",
+  "entry": {
+    "measurement_window": "17:55-18:02 server time (15:55-16:02 London) -- captures the run-up into the fix and the print itself",
+    "trigger": "if the price move across the measurement window exceeds MinSpikeSizePips (15 pips default), fade it",
+    "side": "sell if price rose into the fix, buy if price fell into the fix",
+    "skip_conditions": ["spike smaller than MinSpikeSizePips", "spread > MaxSpreadPips (3 pips default)", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default), beyond entry in the spike's own direction",
+  "take_profit": "spike size * TPMultiplier (1.0 default), back toward the pre-fix price level",
+  "exit": {
+    "rule": "market close 30 minutes (HoldMinutes) after the measurement window closes, regardless of P&L, unless SL/TP hit first",
+    "end_of_day_flat_hour_server": 22
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0
+  },
+  "tunable_parameters_to_sweep": "MinSpikeSizePips, SLMultiplier, TPMultiplier, PreFixMinutes/PostFixMinutes window width -- none swept yet, this is the v1 baseline with reasonable starting defaults (mirrors london_range_fade's original approach, which had real parameters to search, unlike gotobi's zero-parameter design)",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 21,
+    "rationale": "Standard day_trading category anchor -- expected roughly one trade per trading day when the spike filter fires, similar cadence to london_range_fade."
+  }
+}

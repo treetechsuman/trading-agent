@@ -1,0 +1,41 @@
+{
+  "id": "day_trading/month_end_fix_reversal",
+  "version": "v3",
+  "category": "day_trading",
+  "origin": "SAFETY-LEDGER BACKFILL + CHART PANEL patch on top of v2, 2026-09-23. v2 only had the InpAllowLiveAccount live-account guard -- it was missing the consecutive-loss halt, daily-loss halt, and drawdown kill-switch (balancePeak tracking) that CLAUDE.md's kill-switch section implies should be standard across strategy EAs, and that sibling gotobi/v1 already has. v3 copies gotobi/v1's safety-ledger pattern exactly: consecutiveLosses + InpMaxConsecutiveLosses, an OnTradeTransaction() handler that increments/resets it on deal close, monthlyHaltActive + haltSetYear/haltSetMonth + CheckMonthlyHaltResume(), dailyStartBalance + dailyHaltActive + InpDailyLossStopPercent + UpdateDailyLossHalt(), balancePeak + drawdownHaltActive + InpMaxDrawdownStopPercent + UpdateDrawdownHalt(), and InpResetLedgerNow/InpResetDrawdownStop manual-reset inputs. Also adds the on-chart status panel required by .claude/agents/ea-coder.md's 'Chart status panel' convention (Comment()-based, 1s OnTimer refresh, InpValidatedSymbols input). NO entry/exit trigger logic, spike-threshold math, sizing, or timing was changed from v2 -- diff-verifiable: only additions are the safety-ledger state/inputs/functions, the panel state/inputs/functions, and new early-return checks that can only SUPPRESS a trade v2 would have taken (checked immediately before v2's existing threshold/spread/sizing checks), never add one.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "Unchanged from v1/v2: large asset managers, pension funds, and corporates rebalance currency hedges at month-end based on that month's realized equity performance, with flow concentrating in the final 2-3 trading days and peaking on the last day, specifically around the London 4pm fix. Hypothesis: fix-window spikes on these specific days are more often genuine flow-driven (and thus more reliably reversion-prone) than an average day's spike.",
+  "entry": {
+    "calendar_filter": "only trade if today is within TradeLastNDaysOfMonth (3 default) calendar days of month-end",
+    "measurement_window": "17:55-18:02 server time (15:55-16:02 London), identical to wm_fix_reversal and v1/v2",
+    "trigger": "fix-window move >= max(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * rolling average of the fix window's own recent history, fed every day regardless of the calendar filter)",
+    "side": "fade -- sell if price rose into the fix, buy if it fell",
+    "safety_gate_added_in_v3": "immediately before the threshold/spread/sizing checks, entry is additionally suppressed if monthlyHaltActive || dailyHaltActive || drawdownHaltActive -- see safety_ledger below. Never changes which spikes qualify or how size/SL/TP are computed when a trade IS allowed through."
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default) -- unchanged from v1/v2",
+  "take_profit": "spike size * TPMultiplier (1.0 default) -- unchanged from v1/v2",
+  "exit": {
+    "rule": "market close 30 minutes after the measurement window closes if SL/TP not hit, or end-of-day flat at 22:00 server -- unchanged from v1/v2"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0,
+    "note": "CalculateLotSize() logic byte-for-byte unchanged from v1/v2 (risk % of ACCOUNT_EQUITY, round down to volume step, skip trade below broker minimum)."
+  },
+  "tunable_parameters_to_sweep": "Unchanged from v1/v2 -- not the subject of this version. TradeLastNDaysOfMonth (3 default), MinSpikeVsAvgMultiplier -- not yet swept.",
+  "safety_ledger": {
+    "change": "Backfilled the full standard safety ledger, copied line-for-line from strategies/day_trading/gotobi/v1/strategy.mq5: input int InpMaxConsecutiveLosses=6 + consecutiveLosses counter incremented/reset in a new OnTradeTransaction() handler keyed on MagicNumber+_Symbol+DEAL_ENTRY_OUT+profit sign; monthlyHaltActive+haltSetYear+haltSetMonth+CheckMonthlyHaltResume() (halt lifts on the first day of the next calendar month, same cadence rationale as gotobi since this strategy also evaluates every month, just with a narrower few-day window inside it); input double InpDailyLossStopPercent=5.0 + dailyStartBalance (captured in ResetDayState(), which already ran once per day) + dailyHaltActive + UpdateDailyLossHalt(); input double InpMaxDrawdownStopPercent=15.0 + balancePeak + drawdownHaltActive + UpdateDrawdownHalt(); input bool InpResetLedgerNow=false and InpResetDrawdownStop=false for manual clearing. All three halt flags are OR'd into a single gate checked in OnTick() immediately before v2's existing threshold/spread/sizing checks in the entry path -- structurally identical placement to gotobi's own 'if(monthlyHaltActive || dailyHaltActive || drawdownHaltActive) return;' gate.",
+    "scope": "Can only SUPPRESS a trade v2 would have taken (any trade that would open while a halt is active this version now skips it) -- cannot add a trade v2 would not have taken. Zero entry/exit/threshold/sizing/timing logic changed otherwise.",
+    "backtest_impact": "NOT a no-op, unlike v2's InpAllowLiveAccount patch. Because this strategy has historically strung together consecutive losing months in its own backtest history (per v1/v2 review.md), the consecutive-loss/daily-loss/drawdown gates are expected to fire at least occasionally within the existing in-sample/out-of-sample windows, which can only reduce v3's total trade count and shift PF/drawdown numbers relative to v2 -- possibly for the better (removing tail-risk clusters) or the effective PF could look different either way. v2's review.md/VERDICT.md numbers must NOT be assumed to carry over -- this version requires a fresh in-sample backtest (and, if it still looks live-worthy, a fresh out-of-sample validation) before any live/demo status decision is made on it.",
+    "requested_by": "Orchestrator/user, 2026-09-23, closing the gap identified in ea-coder/lessons.md's month_end_fix_reversal/v2 entry (v2 only ever added the InpAllowLiveAccount gate, not the rest of the standard ledger)."
+  },
+  "chart_panel": {
+    "change": "Added the Comment()-based on-chart status panel required by .claude/agents/ea-coder.md's 'Chart status panel' convention: identity/DEMO-LIVE line, Validated: line (input string InpValidatedSymbols, comma-separated, seeded from this spec's \"symbol\" field), Risk/trade + DD-from-peak line, Status line (RUNNING / HALTED:<reason> / INIT FAILED:<reason> / WARNING: SYMBOL NOT VALIDATED FOR THIS EA), Safety: losses X/Y line, Position line, Last: line, then an EA-specific block showing today's month-end-window eligibility (day X of month vs TradeLastNDaysOfMonth), the fix window's start/end and scheduled exit clock times, and the spike-history state (spikeHistoryCount/SpikeHistoryWindow samples, current rolling average, current adaptive threshold). Refreshed every OnTick() and via a 1-second OnTimer(); rendered before the INIT_FAILED return on the live-account guard too; cleared with Comment(\"\") in OnDeinit().",
+    "scope": "Display only -- reads existing/new state variables, never influences any trading decision."
+  },
+  "demo_criteria": {
+    "min_trades": 20,
+    "min_days": 60,
+    "rationale": "Unchanged from v1/v2. Low frequency by design (only ~3 trading days/month qualify at all, further filtered by the spike threshold, now also by the new safety halts) -- similar low-frequency profile to gotobi, anchor adjusted accordingly rather than the standard day_trading category anchor."
+  }
+}

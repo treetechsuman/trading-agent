@@ -1,0 +1,28 @@
+metric,value
+Total Net Profit,55.76
+Balance Drawdown Absolute,52.30
+Equity Drawdown Absolute,56.41
+Balance Drawdown Maximal,113.56 (1.12%)
+Equity Drawdown Maximal,144.35 (1.42%)
+Balance Drawdown Relative,1.12% (113.56)
+Equity Drawdown Relative,1.42% (144.35)
+Profit Factor,1.17
+Expected Payoff,1.12
+Recovery Factor,0.39
+Sharpe Ratio,5.75
+Total Trades,50
+Short Trades (won %),50 (48.00%)
+Long Trades (won %),0 (0.00%)
+Total Deals,100
+Profit Trades (% of total),24 (48.00%)
+Loss Trades (% of total),26 (52.00%)
+Largest profit trade,71.28
+Largest loss trade,-50.25
+Average profit trade,15.87
+Average loss trade,-12.51
+Maximum consecutive wins ($),4 (40.25)
+Maximum consecutive losses ($),6 (-69.44)
+Maximal consecutive profit (count),96.62 (3)
+Maximal consecutive loss (count),-73.96 (4)
+Average consecutive wins,2
+Average consecutive losses,2

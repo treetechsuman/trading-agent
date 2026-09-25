@@ -1,0 +1,37 @@
+{
+  "id": "scalping/overlap_momentum_scalp",
+  "version": "v1",
+  "category": "scalping",
+  "origin": "Researcher-designed, 2026-09-22, per user request for a scalping strategy during the London or London/NY overlap session.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "The London/New York overlap (13:00-16:00 London) is the highest-liquidity window in FX. Fast, high-conviction M1 momentum bursts in this window reflect concentrated institutional order flow and tend to see brief continuation before fading (short-horizon order-flow persistence) -- distinct from london_orb's failed multi-hour session-range-breakout thesis.",
+  "broker_clock_conversion": "13:00-16:00 London = 15:00-18:00 this broker's server time, constant year-round.",
+  "entry": {
+    "trigger": "a completed M1 bar's body >= max(MinBurstPipsFloor, BurstVsAvgMultiplier * rolling average of the last BurstHistoryWindow session bars' body sizes), AND body/range >= MinBodyToRangeRatio (filters wick-heavy bars)",
+    "side": "buy on a bullish burst, sell on a bearish burst (continuation bet, not a fade)",
+    "skip_conditions": ["burst below adaptive threshold", "body/range ratio too low", "spread > MaxSpreadPips (1.5 pips default)", "already in a position", "MaxTradesPerDay reached", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss": "max(MinStopPips, burst body size in pips * SLMultiplier)",
+  "take_profit": "burst body size in pips * TPMultiplier",
+  "exit": {
+    "rule": "market close MaxHoldMinutes (10 default) after entry if SL/TP not hit, or immediately at session end (18:00 server)"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 0.3,
+    "note": "smaller than this project's day-trading strategies (0.5-1%) since scalping trades far more often per day -- caps cumulative daily exposure"
+  },
+  "safety_rules": {
+    "consecutive_loss_pause": { "threshold": 8, "resume": "first day of next month, or InpResetLedgerNow=true", "note": "higher than gotobi's 6 given much higher trade frequency" },
+    "daily_loss_stop_percent": 5.0,
+    "max_drawdown_stop_percent": 15.0,
+    "max_trades_per_day": 5,
+    "live_account_opt_in_required": "InpAllowLiveAccount must be explicitly true"
+  },
+  "tunable_parameters_to_sweep": "BurstVsAvgMultiplier, SLMultiplier, TPMultiplier, MinBodyToRangeRatio, MaxHoldMinutes -- not yet swept, v1 baseline uses reasonable starting defaults pending an in-sample sweep.",
+  "demo_criteria": {
+    "min_trades": 45,
+    "min_days": 12,
+    "rationale": "Scalping category anchor (40-50 trades / 10-14 days) from CLAUDE.md."
+  }
+}

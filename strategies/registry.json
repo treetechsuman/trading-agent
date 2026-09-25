@@ -1,0 +1,545 @@
+{
+  "day_trading/london_orb": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v3",
+    "created": "2026-09-17",
+    "last_updated": "2026-09-17",
+    "notes": "Range-breakout-continuation on EURUSD.r, pre-London range. Three structurally different entry filters all converged on ~32-33% win rate / PF ~0.78-0.81 -- no real edge in the continuation thesis. See strategies/_graveyard/london_orb/REASON.md. Backfilled into this registry retroactively; predates the multi-agent restructure (2026-09-22).",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-17"
+      }
+    ]
+  },
+  "day_trading/london_range_fade": {
+    "category": "day_trading",
+    "status": "backtested",
+    "parked": true,
+    "parked_date": "2026-09-22",
+    "current_version": "v2",
+    "created": "2026-09-17",
+    "last_updated": "2026-09-22",
+    "notes": "Fades the pre-London range break instead of following it. In-sample PF 1.08, out-of-sample PF 1.10 (2023-2025, used once) -- no curve-fitting signature, but edge is thin (PF never comfortably above 1 in any test), 2018 remains an unexplained losing year, and absolute returns are modest (~1-2%/yr). Researcher's own verdict (VERDICT.md): NOT READY for live, genuinely borderline -- not a live_candidate. The user separately marked this TRADEABLE on 2026-09-17 and is holding it for their own review; that's the user's own call, distinct from and not overriding the Researcher verdict, so status stays backtested (awaiting a refine/discard/accept-the-risk decision) rather than live_candidate. Investigated 2018's losses directly (2026-09-22): apparent buy/sell and January-specific patterns didn't generalize across years -- no clean fix found. PARKED by user request 2026-09-22, alongside wm_fix_reversal, after both landed in the same thin-edge (~PF 1.05-1.23) territory -- not discarded/rejected, just not being actively iterated on for now; revisit if there's new evidence or appetite to dig further. See strategies/day_trading/london_range_fade/STRATEGY.md and VERDICT.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-17"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-17"
+      }
+    ]
+  },
+  "day_trading/gotobi": {
+    "category": "day_trading",
+    "status": "approved_live",
+    "current_version": "v2",
+    "created": "2026-09-22",
+    "last_updated": "2026-09-23",
+    "notes": "User-specified (not Researcher-designed) fixed-rule EA: sells USDJPY/EURJPY.r/GBPJPY.r into the Tokyo gotobi pre-fixing dollar-demand spike. No tunable parameters swept -- brief specified exact rules. Backtested both per-pair (3 independent single-symbol runs) and as a true combined-account portfolio (v1_portfolio/, one EA instance trading all 3 symbols against one shared account). In-sample (2017-2022): per-pair 18/18 pair-years profitable, PF 1.42-1.48/pair; combined-account PF 1.36, 898 trades, max drawdown 4.85-6.36%. Out-of-sample (2023-2025, used once): per-pair PF improved to 1.48-1.86 (2025 alone carries ~65-85% of each pair's OOS profit); combined-account PF improved to 1.72, 459 trades, max drawdown 6.80-8.05% -- both comfortably below the 15% kill-switch. A real bug (shared CTrade magic-number mismatch causing stuck positions) was found and fixed in v1_portfolio during this validation -- see ea-coder/lessons.md. Verdict: ready for live at reduced size (thin edge + unverified live execution quality is the one remaining open risk) -- see strategies/day_trading/gotobi/VERDICT.md. APPROVED_LIVE by user 2026-09-23, explicit instruction in-session to go straight to live capital (skipping demo), scope narrowed to VERDICT's reduced-size option: USDJPY only first (the pair with the longest/most consistent track record per VERDICT.md), EURJPY.r/GBPJPY.r held back until fills are confirmed. account YOUR_ACCOUNT_LOGIN / FPMarkets-Live -- real capital.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "live_candidate",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-23",
+        "note": "User explicit in-session approval: go straight to live (no demo), USDJPY only first at spec's default 0.5% risk, EURJPY.r/GBPJPY.r held back per VERDICT.md's reduced-size recommendation."
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-23",
+        "note": "[Live Manager 2026-09-23]: Pre-deployment checks completed for USDJPY-only, spec-default 0.5% risk. Compiled EA verified present and current (source strategies/day_trading/gotobi/v1/strategy.mq5, data-folder copy MQL5/Experts/EAFactory/gotobi/v1/strategy.ex5 -- the single-symbol v1 build, not v1_portfolio, matching one_ea_per_symbol_chart=true and the USDJPY-only approved scope). InpAllowLiveAccount safeguard confirmed present in source (refuses ACCOUNT_TRADE_MODE_REAL unless explicitly set true) -- must be set true at attach time for this deliberate, approved deployment. Account/server target confirmed as YOUR_ACCOUNT_LOGIN/FPMarkets-Live per root CLAUDE.md (the only account referenced in this project; the unrelated second MT5 install is a separate, logged-out installation and was not touched). HOWEVER: terminal64.exe confirmed NOT running (tasklist check, 2026-09-23) and no chart-attach was performed this session -- attaching an EA to a live chart is a GUI-only action (Navigator drag-drop + Inputs dialog + Algo Trading toggle) that this agent cannot drive non-interactively via Bash. NOTHING IS LIVE OR RUNNING as of this entry. Status intentionally left at approved_live, NOT advanced to live, until a human (or a future session with GUI access) completes the manual attach and this is verified. See live-manager/lessons.md for the exact step-by-step this session prepared for that attach."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "[EA Coder 2026-09-23, v2]: DISPLAY-ONLY patch, per .claude/agents/ea-coder.md Chart status panel convention (added 2026-09-23, required before live_candidate/live_candidate_final). Copied v1/strategy.mq5 forward unmodified and added the on-chart Comment() status panel (identity/DEMO-LIVE line, Validated-symbols line from spec.json symbols, Risk/trade + DD-from-peak line, Status line incl. the WARNING-not-validated case, Safety losses line, Position line, Last-action line, and a gotobi-specific block showing todays gotobi-day eligibility + next entry window/countdown), wired via both OnTick() and a 1s OnTimer(), rendered before the INIT_FAILED return on the live-account guard, and cleared with Comment(\"\") in OnDeinit(). Added exactly one new input, InpValidatedSymbols (default \"USDJPY,EURJPY.r,GBPJPY.r\", from v1/spec.json symbols field). Compiled clean, 0 errors/0 warnings, first attempt (v2/compile.log). Zero entry/exit/sizing/timing/safety logic changed -- v1s full safety ledger (consecutiveLosses, dailyHaltActive, drawdownHaltActive, balancePeak, InpAllowLiveAccount) carried over unmodified; original OnTick() body moved verbatim into a new ProcessTick() helper (called from OnTick before RenderPanel()) purely so the panel always refreshes on every early return, no trading-logic reordering. current_version bumped to v2; top-level status deliberately LEFT AT approved_live (not reset to coded) per explicit task instruction -- this is a documented zero-logic-change display patch on an already-vetted, user-approved-for-live strategy, not a fresh unreviewed version, so v1s review.md/VERDICT.md findings and the existing live approval apply unchanged to v2. Compiled .ex5 available at MQL5/Experts/EAFactory/gotobi/v2/strategy.ex5 in the FP Markets terminal data folder for Live Manager if/when it re-attaches using this version instead of v1."
+      }
+    ]
+  },
+  "day_trading/wm_fix_reversal": {
+    "category": "day_trading",
+    "status": "backtested",
+    "parked": true,
+    "parked_date": "2026-09-22",
+    "current_version": "v2",
+    "created": "2026-09-22",
+    "last_updated": "2026-09-22",
+    "notes": "Researcher-designed: fades the WM/Reuters 4pm London fix volatility spike on EURUSD.r/GBPUSD.r. v1 (fixed MinSpikeSizePips=12, kept for comparison) looked strong but its out-of-sample trade frequency collapsed ~85-90% (EURUSD zero trades in 2023). v2 redesign replaced the fixed threshold with a volatility-adaptive one (MinSpikeVsAvgMultiplier=2.0 x rolling 20-day average of the fix window's own recent moves, 5-pip floor) -- fixed frequency collapse decisively but the larger, honest OOS sample (158 trades) revealed a thin edge: PF 1.06 (EUR) / 1.04 (GBP) OOS, comparable to london_range_fade's own ~1.05-1.14. Parked 2026-09-22, briefly set to live_candidate on the user's direct instruction (overriding Researcher's assessment), then tested the one open thread that might have justified it: built v2_portfolio/ (combined EUR+GBP one-account harness) to check whether each pair's non-coinciding losing OOS years meant a diversification benefit. RESULT: hypothesis failed -- combined-account drawdown is WORSE than either pair alone in both periods (in-sample 14.56-15.44% vs 8.7-10.2% individually, came within half a point of the 15% kill-switch; out-of-sample 9.11-9.67% vs 6.9-7.6%), because 24% of days both pairs traded saw BOTH lose simultaneously (same fix event, correlated risk) -- see v2_portfolio/review.md. RE-PARKED by user 2026-09-22 after seeing this result -- not discarded/rejected, just not being actively iterated on for now. See strategies/day_trading/wm_fix_reversal/STRATEGY.md, v2/review.md, v2/comparison.md, v2_portfolio/review.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "live_candidate",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      }
+    ]
+  },
+  "scalping/overlap_momentum_scalp": {
+    "category": "scalping",
+    "status": "discarded",
+    "current_version": "v3",
+    "created": "2026-09-22",
+    "last_updated": "2026-09-22",
+    "notes": "User-requested: scalping strategy during the London/New York overlap (13:00-16:00 London), EURUSD.r, M1. Four variants tested, 2021-2023 in-sample / 2024-2025 out-of-sample: v1 momentum continuation (PF 0.73, ~49% WR, hit 15% kill-switch), v2 momentum fade -- opposite direction, same signal (PF 0.60, ~45% WR, also hit kill-switch, confirming the single-bar signal carries no real directional info either way), v3 deviation-from-SMA fade at default params (PF 0.82, but win rate 55.86% -- real signal, R:R just miscalibrated; a 7-combo SL/TP sweep showed win rate and reward trading off in lockstep, PF stuck 0.82-0.89 regardless -- signature of costs/geometry dominating), v3 tuned/locked (higher selectivity threshold) -- diagnosed gross price P&L was actually POSITIVE (+$729.60/725 trades) but commission (-$1,784.13) was 2.4x the edge and wiped it out; raising selectivity got in-sample PF to 1.02 (221 trades) but 2 of 3 years were individually negative, entire result carried by one year -- out-of-sample confirmed this was a small-sample artifact: PF 0.80, -$371 net. Decisive rejection across multiple well-motivated angles, same pattern as london_orb. Moved to strategies/_graveyard/overlap_momentum_scalp/. See REASON.md for full detail and what would need to be true to revisit (lower-commission venue, true order-flow data, or accepting a longer non-scalping holding horizon).",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-22"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-22"
+      }
+    ]
+  },
+  "scalping/overlap_deviation_scalp": {
+    "category": "scalping",
+    "status": "discarded",
+    "current_version": "v5",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "Direct continuation of overlap_momentum_scalp (user instructed 'keep going until you make one, no need to wait for approval' after that line was discarded). Reused its one validated mechanism (deviation-from-SMA fade) and tested it exhaustively across every reasonable lever: direction (fade confirmed correct vs continuation, twice), bar granularity (M1 vs M5), symbol (GBPUSD/GBPJPY/EURUSD/USDJPY -- USDJPY never fit, PF 0.41), selectivity threshold (found real non-monotonic peaks), hold time (fixed a real design flaw -- 68-73% of trades were hitting an arbitrary 15-min cutoff before reaching target; 30-min peak identified, quintupled net profit in-sample), session width (full London session beat the overlap alone), and volume confirmation (added no value). 13 combinations tested total. Best result (v4, GBPUSD.r, M5, full London session): in-sample PF 1.09 on 1230 trades with every year individually profitable and win rate stable within 1pt across 3 years -- but out-of-sample PF 0.81 on 727 trades, win rate dropped 4-5pts. Both the in-sample success and out-of-sample failure are large-sample, statistically confident results, not noise -- the strongest, most conclusive negative finding of the whole scalping investigation. Same regime-dependence pattern seen in gotobi/wm_fix_reversal (strong 2021-2023, weaker 2024-2025) but sharper here -- the micro-edge appears to have genuinely diminished rather than just weakened. See REASON.md for full 13-combination table and what would need to be true to revisit (lower-commission venue, real order-flow data, or a volatility-regime filter that resolves the tension between trading often enough to overcome fixed costs and only trading when the regime supports the edge).",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23"
+      }
+    ]
+  },
+  "scalping/liquidity_sweep_reversal": {
+    "category": "scalping",
+    "status": "discarded",
+    "current_version": "v1",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "Built after deep external research per user's 'think out of the box' instruction (previous two scalping lines, 17 combinations, both discarded). A structurally different signal from everything tried before: fades a wick that sweeps through a recent swing high/low and closes back inside the prior range (documented liquidity-grab/stop-hunt pattern, based on concrete price structure, not a statistical rolling-average threshold). GBPUSD.r, M5, full London session. 8-combination sweep across SwingLookback (12/20/30) and MinSweepPips (2/4/6): PF plateaued at 0.86-0.95 across every combination, never crossing 1.0 -- no in-sample result worth validating out-of-sample. External research conducted alongside this (cited in REASON.md) confirms the broader conclusion is well-supported, not just internal trial and error: FX majors aren't reliably cointegrated (rules out pairs trading), triangular arbitrage needs sub-millisecond multi-broker infrastructure retail doesn't have, genuine order-flow-based FX predictability is real but academically documented as fragile against transaction costs, and MT5 tick volume isn't real volume. Across 25+ backtested configurations total (this strategy plus the two prior scalping lines), no signal tested got anywhere near the 60-75% win rate the literature says retail scalping needs to overcome realistic costs. CONCLUSION: scalping does not appear currently viable on this account with MT5-derivable data: no Level 2/order-flow data, standard retail commission structure. Recommend directing further effort to day-trading timescales (where gotobi already found a real edge) rather than continuing to search for a scalping edge. See REASON.md for full detail and research citations.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23"
+      }
+    ]
+  },
+  "day_trading/intraday_momentum_carry": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v1",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "Built per user's 'go for day trading' instruction, directly implementing a published peer-reviewed finding (Gao/Han/Li/Zhou 2018 JFE: first half-hour return predicts last half-hour return; Baltussen/van Vliet/Ye 2021 extended to 60+ futures incl. currencies over 40yrs, both report cost-robustness) rather than an internally-invented pattern. London session, sign-only construction faithful to the literature (no magnitude filter), only addition being a stop-loss (papers study pure hold-to-close, not risk management). Tested across 2 pairs, 5 stop widths (20-100 pips), and 2 measurement-window sizes (30/30 and 60/60 min) -- 8 configurations, ALL stayed below PF 1.0 (range 0.67-0.88), win rate never cleared 50%. Likely explanation (see REASON.md): the direct FX evidence in the literature is narrow/crisis-specific (RUB-USD during a financial crisis), the currency evidence that does exist is on FX futures with exchange-defined sessions not spot FX's continuous market, and the effect's own reported predictive R^2 (~1.6%) is weak per-observation -- real in aggregate across many instruments/days, easily swamped by retail costs on one pair's single daily realization. Same 'real but too thin for retail costs' pattern found independently in the scalping investigation, now confirmed at day-trading timescale too. CONCLUSION/meta-finding: this project's actual successes (gotobi, wm_fix_reversal) are anchored to SPECIFIC NAMED institutional flow events, not generic statistical patterns (whether internally-invented technical rules or externally-published academic anomalies studied on different instruments) -- recommend treating specificity-of-mechanism as the primary design principle for future strategies, not just wide search for well-cited ideas. See REASON.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23"
+      }
+    ]
+  },
+  "day_trading/month_end_fix_reversal": {
+    "category": "day_trading",
+    "status": "approved_live",
+    "current_version": "v3",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-25",
+    "notes": "Built per user's 'hunt for another [specific-event strategy]' instruction, after research into month-end institutional FX hedge-rebalancing flows (concentrated in final 2-3 trading days of the month, peaking on the last day around the London 4pm fix -- documented in FX-flow literature). Direct descendant of wm_fix_reversal v2's mechanism (identical fix-window fade logic, its already-locked parameters reused UNCHANGED), with exactly one addition: a pre-specified calendar filter (trade only within TradeLastNDaysOfMonth=3 of month-end). CRITICALLY, no parameter sweep was performed -- this is the first and only configuration tested, a methodologically cleaner evidentiary shape than several earlier 'promising in-sample, failed OOS' results in this project. v1 RESULT: tested on 3 pairs (EURUSD.r, GBPUSD.r, USDJPY) AND as a combined 3-pair portfolio (v1_portfolio/, same pattern as gotobi's), 2018-2022 IS / 2023-2025 OOS. Every single pair IMPROVED out-of-sample, no exceptions: EURUSD PF 1.12->2.21, GBPUSD PF 1.67->2.05, USDJPY PF 1.14->1.42. Combined portfolio ALSO improved: PF 1.25->2.08, max DD 6.48-7.02%->4.39-5.63% (improved, not worsened). Combined-account check (the same one that revealed wm_fix_reversal's hidden correlated-loss problem) resolved FAVORABLY here: 24.2% of multi-pair days see every pair lose together (near-identical rate to wm_fix_reversal's own 24%), but drawdown impact stays mild (only modestly worse than the single weakest pair) rather than doubling, likely because month-end's ~monthly frequency gives correlated-loss days far less chance to cluster into a deep consecutive drawdown than wm_fix_reversal's daily cadence did. Combined trades: 174-176 total across the 8-year window -- still under the 200-trade bar, the one real remaining limitation, inherent to only ~3 qualifying days/month. USDJPY is the weakest of the three pairs (higher drawdown). v1 VERDICT (2026-09-23, Researcher's own genuine recommendation, not user-overridden): ready for live at reduced size, starting EUR/GBP only (leave out USDJPY initially). See STRATEGY.md, VERDICT.md, v1/review.md, v1_portfolio/review.md. APPROVED_LIVE by user 2026-09-23 for v1/v2 scope (EURUSD.r + GBPUSD.r only, USDJPY held back), account YOUR_ACCOUNT_LOGIN / FPMarkets-Live -- real capital. v2 added ONLY the InpAllowLiveAccount guard (Live Manager had blocked deployment on v1 for lacking it) -- a confirmed backtest no-op, left at approved_live without a fresh review. v3 (2026-09-23) backfilled the full safety ledger (consecutive-loss/daily-loss/drawdown halts, copied from gotobi/v1) plus the on-chart status panel -- NOT a no-op (the ledger can suppress, never add, a trade), so EA Coder deliberately reset status to require a fresh 6-leg backtest before any live/demo decision carried forward. FRESH v3 BACKTEST RESULT (2026-09-23): 5 of 6 legs exact-matched v1/v2 (EURUSD.r IS PF1.12/35 & OOS PF2.21/19; GBPUSD.r IS PF1.67/37 & OOS PF2.05/21; USDJPY OOS PF1.42/16) -- the ledger never fired for either approved pair (EUR/GBP), in-sample or out-of-sample, across the full 2018-2025 window. Only USDJPY in-sample diverged (PF 1.14->1.24, 48->47 trades): traced trade-by-trade to one suppressed trade (2021.11.30, which would have been USDJPY's 7th consecutive loss during the 2021 BOJ-easing/Fed-hiking regime already flagged in yen_fiscal_repatriation) -- that trade lost money in the original run too, so the effect is unambiguously net POSITIVE, and USDJPY isn't even in the approved live scope. RESEARCHER REVIEW (2026-09-23, v3/review.md): decision live_candidate, not a silent carry-forward of approved_live -- reasoning is structural (CLAUDE.md: approved_live is user-set only, never inferred; EA Coder's own v3 note explicitly required a fresh review before assuming the old approval carries, and re-asserting approved_live myself here would defeat the point of that check) rather than evidentiary (the evidence itself is unambiguously supportive: both approved pairs are byte-for-byte unchanged, the one divergence is net-positive and on a non-approved pair). Portfolio-level (v1_portfolio-equivalent) re-validation was judged NOT necessary as a blocker -- neither approved pair's trades changed at all, and v1_portfolio's combined drawdown (6.48-7.02% IS / 4.39-5.63% OOS) sits well below the ledger's 5%/15% halt thresholds, so there's no evidence a combined-account run would behave differently; flagged as a nice-to-have post-hoc confirmation instead. Also flagged an operational note for Live Manager (not a blocker, conservative-only): live deployment attaches one EA instance per symbol/chart, so if EUR and GBP are both attached live they'll each read the SAME shared real ACCOUNT_BALANCE for their independently-tracked ledger state -- a bad day on one pair can trip the other's daily-loss/drawdown halt too, an interaction neither the isolated per-pair backtests nor v1_portfolio (which predates the ledger) exercise; can only cause extra suppression, never extra risk. RECOMMENDATION: user should reconfirm approved_live specifically for v3 at the same EUR+GBP scope -- expected to be a fast formality given both approved pairs are unchanged, not a fresh full review. See v3/review.md for full detail.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "live_candidate",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-23",
+        "note": "User explicit in-session approval: go straight to live (no demo), EURUSD.r + GBPUSD.r only at reduced size, USDJPY held back per VERDICT.md's reduced-size recommendation."
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-23",
+        "note": "[Live Manager 2026-09-23]: DEPLOYMENT BLOCKED -- not proceeding, per this project hard rule 4 (root CLAUDE.md / live-manager.md: every EA deployed here must already declare an InpAllowLiveAccount-style input that refuses ACCOUNT_TRADE_MODE_REAL unless explicitly true; if missing, stop and flag rather than deploy). Checked strategies/day_trading/month_end_fix_reversal/v1/strategy.mq5 directly: it has NO such safeguard anywhere (grep for LiveAccount/TRADE_MODE/REAL returns zero matches) -- this EA would start trading real money on account YOUR_ACCOUNT_LOGIN immediately on attach with no opt-in gate at all, unlike gotobi/london_range_fade which both have this guard. Not attached to any chart, not running, zero trades placed, nothing changed to the compiled EA. Approved_live status left as-is (user approval for the strategy/scope stands) but deployment cannot proceed until EA Coder adds the InpAllowLiveAccount guard (pattern: strategies/day_trading/gotobi/v1/strategy.mq5 input at line 47, check at lines 239-243) to a new version, and Researcher/user confirm the approval still applies to the patched version. Flagged clearly to the user in this session handback -- see live-manager/lessons.md."
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-23",
+        "note": "[EA Coder 2026-09-23, v2]: SAFETY-ONLY patch, requested by Live Manager after the blocked v1 deployment attempt. Copied v1/strategy.mq5 forward unmodified and added exactly two things, mirroring gotobi/v1's exact pattern: input bool InpAllowLiveAccount = false; and an OnInit() guard that Alert()s+Print()s and returns INIT_FAILED if AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_REAL and InpAllowLiveAccount is still false. Compiled clean, 0 errors/0 warnings, first attempt (v2/compile.log). Diff-verified against v1/strategy.mq5: the ONLY differences are the version string/header comments, the new input declaration, and the OnInit() guard clause -- zero entry/exit/threshold/sizing/timing logic changed. v2/spec.json created (same strategy rules as v1, documents the safety patch explicitly, no re-optimization performed). All of v1's in-sample/out-of-sample results (review.md, VERDICT.md, v1_portfolio/review.md) apply unchanged to v2, since ACCOUNT_TRADE_MODE is never ACCOUNT_TRADE_MODE_REAL inside the Strategy Tester -- the new guard is a no-op during backtesting. current_version bumped to v2; status left at approved_live (unchanged, per instruction -- the existing user approval now applies to this patched version; only Live Manager or the user advances status further). Compiled .ex5 for Live Manager: MQL5/Experts/EAFactory/month_end_fix_reversal/v2/strategy.ex5 in the FP Markets terminal's data folder. See ea-coder/lessons.md for the general lesson (retrofit this gate by default on all future strategies from the start)."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "[EA Coder 2026-09-23, v3]: Backfilled the full standard safety ledger that v2 was still missing (consecutive-loss halt, daily-loss halt, drawdown kill-switch/balancePeak tracking), copied line-for-line from gotobi/v1/strategy.mq5, plus added the on-chart Comment()-based status panel per .claude/agents/ea-coder.md convention. No entry/exit/threshold/sizing/timing logic changed -- the new halts can only suppress a trade v2 would have taken, never add one. Compiled clean, 0 errors/0 warnings, first attempt (v3/compile.log). Because the safety ledger can change trade count/outcomes vs v2, status set back to coded (not carried forward as approved_live/live_candidate) so this version goes through a fresh backtest before any live/demo decision -- v2 review.md/VERDICT.md numbers do not automatically apply. See v3/spec.json and ea-coder/lessons.md."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "[Orchestrator 2026-09-23]: Fixed InpValidatedSymbols default in v3/strategy.mq5 -- EA Coder had defaulted it to just \"EURUSD.r\" (v2/spec.json single-symbol field), but VERDICT.md documents this strategy was backtested independently on EURUSD.r, GBPUSD.r, AND USDJPY (plus a true 3-pair portfolio run), and the user live-approved EURUSD.r + GBPUSD.r. Left as-is, the new chart panel would have shown a false WARNING: SYMBOL NOT VALIDATED on a GBPUSD.r chart. Changed default to \"EURUSD.r,GBPUSD.r,USDJPY\", recompiled clean (0 errors/0 warnings). Lesson added to ea-coder.md/lessons.md: pull InpValidatedSymbols from VERDICT.md/STRATEGY.md, not a single-symbol spec.json, whenever a _portfolio sibling folder exists."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23",
+        "note": "[Orchestrator, acting as Backtester after the dispatched backtester subagent got stuck and produced no output twice — see registry note above / session log for root cause: a stray idle terminal64.exe GUI instance was blocking new Strategy Tester launches, closed with user approval]: Ran all 6 legs directly (EURUSD.r/GBPUSD.r/USDJPY x in-sample 2018-2022/out-of-sample 2023-2025) for v3 (safety-ledger backfill + chart panel). Results: 5/6 legs are EXACT matches to v1/v2 original numbers (EURUSD.r IS PF1.12/35, OOS PF2.21/19; GBPUSD.r IS PF1.67/37, OOS PF2.05/21; USDJPY OOS PF1.42/16) -- the new halts never fired in those. USDJPY in-sample diverged: PF 1.14->1.24, 48->47 trades -- the new InpMaxConsecutiveLosses=6 halt fired (report confirms Maximum consecutive losses: 6) and suppressed one trade, net POSITIVE effect on this leg. Raw journal.csv/summary.csv written for all 6 legs under v3/ (root=EURUSD.r, GBPUSD/, USDJPY/, each with validation/ for OOS). Portfolio-level (3-pair combined account) re-validation NOT yet re-run -- v1_portfolio/ tested combined exposure originally; flagging for Researcher to decide if that is needed before re-confirming live-readiness. Handing off to Researcher to judge whether v3 remains live-worthy given this one divergence."
+      },
+      {
+        "status": "live_candidate",
+        "date": "2026-09-23",
+        "note": "[Researcher 2026-09-23, v3 review]: fresh 6-leg backtest confirmed both approved pairs (EURUSD.r, GBPUSD.r) are byte-for-byte unchanged from v1/v2 -- the new safety ledger never fired for either, in-sample or out-of-sample. The one divergence (USDJPY in-sample, PF 1.14->1.24) was traced trade-by-trade to a single suppressed trade (2021.11.30) that would have been a 7th consecutive loss and did lose money in the original run -- net positive, and on a pair not in the approved live scope. Portfolio-level re-validation judged unnecessary as a blocker (see v3/review.md reasoning: unchanged trades for approved pairs + wide drawdown headroom vs. ledger thresholds + suppress-only bound on the ledger). Set to live_candidate rather than silently carrying forward approved_live: this is a structural, not evidentiary, call -- approved_live is user-set only per CLAUDE.md, and EA Coder's own v3 note explicitly required this fresh review before assuming the prior approval carries over, so re-asserting approved_live without the user's word would defeat the purpose of that check. Recommending the user reconfirm approved_live for v3 at the same EUR+GBP scope as a fast formality, not a fresh full review. See v3/review.md."
+      },
+      {
+        "status": "approved_live",
+        "date": "2026-09-25",
+        "note": "User explicit reconfirmation of approved_live for v3 specifically (the chart-panel + safety-ledger-backfill version), same scope as the original approval: EURUSD.r + GBPUSD.r only, reduced size, USDJPY held back. This was needed because Researcher deliberately did not carry approved_live forward automatically after v3's safety ledger showed a real (though narrow, net-positive, non-approved-pair) effect on the backtest -- see v3/review.md. User confirmed after seeing that both approved pairs were byte-for-byte unchanged across all 8 years in-sample and out-of-sample."
+      }
+    ]
+  },
+  "day_trading/yen_fiscal_repatriation": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v1",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "Sold USDJPY/EURJPY.r/GBPJPY.r within the final 15 calendar days of March and September (Japan fiscal year-end/half-year repatriation thesis -- Japanese life insurers/pension funds/megabanks reducing FX exposure and adding hedges for balance-sheet reporting; BIS Quarterly Review, Hattori & Shin 2007, practitioner desk research, independently corroborated via live web search post-hoc, see dates.md). Zero parameters swept for v1, following month_end_fix_reversal's methodological lesson. In-sample 2017-2022: USDJPY PF 0.83 (-$317, 120 trades), EURJPY.r PF 0.91 (-$162, 107 trades), GBPJPY.r PF 1.12 (+$293, 110 trades); combined -$185 across 337 trades, all under the 200-trade bar per pair and combined. REVIEWED 2026-09-23 (Researcher): full per-trade reconstruction from all three journals (balance-delta cross-checks matched reported net profit exactly for all 3 pairs). Found the September leg net negative across all three pairs (-$310 combined) and the March leg net positive (+$125 combined) -- matching the citation-strength asymmetry already flagged in dates.md (March much better documented than September). But the March leg's positive total is itself an artifact of one strong year (2019) offsetting one COVID-vol-shock year (2020, stop-outs concentrated in EUR/GBP March legs), not a steady seasonal edge -- the same 'one good year carries the average' pattern flagged elsewhere in this project. Losses otherwise concentrate in identifiable macro/volatility-regime episodes (COVID crash March 2020; the 2021-2022 secular BOJ-ultra-easy/Fed-hiking yen-weakening trend, which directly opposed this strategy's short-JPY-cross thesis for USDJPY two years running, including one window where the spec's own 6-consecutive-loss safety pause fired correctly and truncated trading) rather than random noise. No within-window timing concentration found (last-3-days of the 15-day window did not consistently outperform the full window across years), ruling out 'window too wide' as a motivated fix. No single, causally-motivated refinement survived scrutiny -- dropping the September leg looked promising at first (matches citation asymmetry) but the residual March-only result is itself a small-sample/one-good-year artifact once inspected per year, so locking it would repeat a mistake this project has already made and rejected (wm_fix_reversal v1, overlap_deviation_scalp v1-v4). DISCARDED per this project's house rule (discard rather than sweep parameters when no clear causal fix exists). Meta-finding: a real, well-corroborated, specifically-named institutional flow can still fail to survive backtesting for a reason distinct from intraday_momentum_carry's ('academic effect too generic/thin') -- here the mechanism is real but small relative to the macro-trend/volatility-regime forces that dominate the instrument during the backtest window; citation quality (named participants, concrete calendar trigger) is necessary but not sufficient, it still has to be checked against whether the instrument's dominant macro regime during the test window was fighting the thesis. See v1/review.md and strategies/_graveyard/yen_fiscal_repatriation/REASON.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23"
+      }
+    ]
+  },
+  "day_trading/london_breakout_retest": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v1",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "User-specified (not Researcher-designed) 'London Breakout & Retest' strategy, exact entry/exit mechanics given directly -- same pattern as gotobi. Asian range (00:00-06:00 UTC high/low) on EURUSD.r/GBPUSD.r/USDJPY, M15 execution + H1 directional context. A delayed, confirmation-gated CONTINUATION entry: impulse close beyond the Asian range (never traded itself), then a pullback retest of that boundary with a rejection-candle confirmation (pin bar or engulfing) within the 07:00-11:00 UTC London window, plus an H1 directional-context filter. Zero parameters swept -- first specified configuration. BACKTESTED 2026-09-23 (Backtester), in-sample 2017-2022, per-pair independent runs: EURUSD.r PF 0.86 (261 trades, 34.48% win rate, net -$1,224.26); GBPUSD.r PF 0.79 (217 trades, 30.41% win rate, net -$1,513.94); USDJPY PF 0.56 (87 trades, 25.29% win rate, net -$1,349.30). All three pairs' balance-drawdown-maximal landed at/just above the 15% kill-switch. REVIEWED 2026-09-23 (Researcher): full equity-curve reconstruction from all three journals confirmed the drawdown-threshold coincidence is real strategy behavior, not a bug -- each pair independently ground down to the spec's own (no-auto-resume) 15% max-drawdown stop at very different calendar dates (USDJPY Nov 2018, GBPUSD.r Nov 2020, EURUSD.r May 2021, ruling out a shared correlated-loss event) and then traded zero times for the rest of the 2017-2022 window (USDJPY dead ~4.1yrs, GBPUSD.r ~2.1yrs, EURUSD.r ~1.6yrs). Position sizing confirmed correct throughout (consistent ~0.5%-of-equity risk per trade, no scale-up-after-loss; USDJPY's low trade count is fully explained by its earliest stop-out date, not a pip-conversion bug). Root cause of the negative PF: win rate (25-34%) sits at or well below the ~33.3% breakeven line the 2R take-profit target requires -- EOD-flat exit truncating some winners short of 2R is a real but secondary contributor (~0.15-0.20 PF on EURUSD alone), not the primary driver. This is the same failure signature already found for london_orb (discarded 2026-09-17, ~32-33% win rate / PF ~0.78-0.81 across three structurally different entry filters on the same continuation thesis) -- adding a materially more selective retest+rejection entry gate did not fix it; two of three pairs came in at a WORSE win rate than any london_orb variant. DISCARDED per house rule (no single clearly-motivated fix identified; entry-filter sophistication does not fix a thesis-level problem, confirmed a second time). See v1/review.md and strategies/_graveyard/london_breakout_retest/REASON.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23"
+      }
+    ]
+  },
+  "day_trading/nfp_fade": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v3",
+    "created": "2026-09-23",
+    "last_updated": "2026-09-23",
+    "notes": "Built per user-approved research into fading the Non-Farm Payrolls (NFP) initial volatility spike -- documented in Linda Raschke & Larry Connors, 'Street Smarts' (1996), as an intraday 'News Strategy' professional bond/currency traders use to fade the herd's initial overreaction to scheduled 8:30am ET economic reports, corroborated by current practitioner sources describing the same fade-the-initial-overreaction structure specifically around NFP. Reuses the general 'measure a spike, then fade it' structural pattern from wm_fix_reversal v2/month_end_fix_reversal v1, but every numeric parameter was independently re-derived for NFP's distinct character. See v1/spec.json and dates.md for full mechanism detail (measurement window T+0-T+10min, threshold floor=15/multiplier=1.2, SL 1.0x/TP 1.3x, 0.5% risk, 60min hold backstop) -- unchanged from v1 through v3. v1 (59 trades combined): too thin to conclude either way (EUR PF 1.46, GBP PF 0.47, JPY PF 1.00 net-flat) -- see v1/review.md. v2 fixed a confirmed calendar-completeness bug (day-of-month rule silently skipped real BLS releases outside days 1-7, e.g. Jan 2020/Jan 2021) by replacing it with a hardcoded 108-entry real-BLS-date table -- grew the combined sample to 67 trades (EUR unchanged 22/PF1.46 since zero EUR dates changed and so is NOT independent replication, just the same 22-trade sample counted twice; GBP 20 trades/PF 0.47->0.73; JPY 25 trades/PF 1.00->1.31), still well below the 200-trade bar. v2/review.md ORIGINALLY diagnosed a second bug (three per-symbol NFP tables silently disagreeing with each other) and sent v3 back to fix it. CORRECTED 2026-09-23: EA Coder investigated that premise before coding v3 and found it does not match the actual codebase -- nfp_fade has always been exactly ONE strategy.mq5 file deployed unmodified to all three chart instances, never three independently-typed tables to drift from; both dates originally called 'dropped' (2022.02.04, 2022.04.01) were already present in v2's single table the whole time. EA Coder's full audit of all 108 table entries against BLS's documented scheduling rule found zero anomalies (104/108 match the base rule, remaining 4/108 are exactly the already-known exceptions: 2020.01.10, 2021.01.08, 2025.01.10, 2025.07.03). v3 as built is a confirmed no-op vs v2 (version string/comments only, diff-verified -- zero logic/parameter/table changes). Researcher re-verified v2's numbers directly against summary.csv on 2026-09-23 (not trusted from any prior write-up): EURUSD.r 22 trades/PF 1.46/net +$116.86; GBPUSD.r 20 trades/PF 0.73/net -$96.04; USDJPY 25 trades/PF 1.31/net +$101.29; combined 67 trades/net +$122.11 -- these stand as the genuine, verified in-sample result (v3 would reproduce them exactly, no re-backtest needed). The real, mundane explanation for GBP/JPY's non-trades on the two originally-flagged dates is the EA's own volatility-threshold/spread filters correctly declining those particular setups, not missing data. Proceeded to out-of-sample validation (2023.01.01-2025.12.31) on v3's locked config, per v3/review.md's decision -- 67 combined in-sample trades was thin but not a structural red flag. OUT-OF-SAMPLE RESULT (2026-09-23, Backtester): EURUSD.r 14 trades/PF 0.91/net -$11.84/WR 50.00%/max eq DD 0.78%; GBPUSD.r 15 trades/PF 1.72/net +$93.85/WR 53.33%/max eq DD 0.68%; USDJPY 14 trades/PF 0.71/net -$53.18/WR 35.71%/max eq DD 1.21%; combined 43 trades/net +$28.83. No calendar-accuracy uncertainty reached this result (the one flagged risk date, 2025.10.03, never produced a trade in any pair). FINAL VERDICT (2026-09-23, Researcher, VERDICT.md): DISCARDED. No pair held its in-sample sign or magnitude out-of-sample -- EUR flipped positive(1.46)->flat-negative(0.91), JPY flipped positive(1.31)->negative(0.71), GBP flipped negative(0.73, the only IS-negative pair)->strongest OOS pair(1.72) -- three different directions, the exact opposite of month_end_fix_reversal's 'every pair improved, no exceptions' pattern and structurally what pure noise looks like split three ways at n=14-15/pair. Combined IS+OOS: 110 trades, net +$150.94 across 3 independent $10,000 accounts over ~9 years -- economically negligible and still under the 200-trade bar, a ceiling this ~12-events/year/pair strategy can never clear via further iteration alone. OOS win rates clustered near chance (50.00%/53.33%/35.71%). A specific mechanism-level finding from direct journal inspection: 86% of OOS trades (37/43) exited via the 60-minute hold-time backstop rather than the take-profit/stop-loss, and only 1 of 43 trades ever reached the 1.3x reversion target -- the strategy's own 'measure the spike, fade it to a target' mechanism essentially never completes within its window, explaining the noise-like result mechanistically, not just statistically. This diagnosis (wider TP/longer hold might let more trades reach target) was deliberately NOT acted on with a v4: doing so now would violate the project's no-re-optimize-after-OOS discipline (the diagnosis was made by looking at the very OOS result it would be responding to), the ~12-event/year/pair frequency means a v4 would still land far under the 200-trade bar, and three versions/four review cycles were already spent on this strategy without an unambiguously positive in-sample result at any point (GBP net-negative in every version through v2). Moved to strategies/_graveyard/nfp_fade/REASON.md. See VERDICT.md, STRATEGY.md, v3/review.md, v3/comparison.md.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-23"
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "Compiled clean 0 errors/0 warnings first attempt. DST spot-check (2024.03.08->15:30, 2023.11.03->14:30) both MATCH; full 9-year + representative-year cross-check also all MATCH."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23",
+        "note": "[Backtester 2026-09-23]: DST spot-check PASSED before full run -- forced-entry probes (InpMinSpikeSizePipsFloor overridden near-zero for the probe only, not the real config) bracketing 2024.03.08 and 2023.11.03 confirm actual entry timestamps land exactly at T+10 after the derived release time: 2024.03.01 15:40:00 server (release 15:30, March case) and 2023.11.03 14:40:00 server (release 14:30, the 'still EDT' November case) -- both MATCH dates.md's table, no off-by-one-hour error. Separately noted (not a DST bug, a pre-flagged known_simplification): the EA's 'first Friday in days 1-7' calendar rule fired on 2024.03.01, not the real BLS release date of 2024.03.08 (BLS shifted that release a week later that month) -- worth Researcher's attention as a real source of missed/mistimed events, separate from the DST math which is confirmed correct. Full in-sample run (2017.01.01-2022.12.31, M1, Model=4, Login=YOUR_ACCOUNT_LOGIN) completed for all three pairs as independent single-symbol runs: EURUSD.r 22 trades, PF 1.46, net +$116.86, max equity DD 1.87%; GBPUSD.r 17 trades, PF 0.47, net -$158.00, max equity DD 2.48%; USDJPY 20 trades, PF 1.00, net -$0.09, max equity DD 1.41%. All three pairs' first live trade only starts Aug 2017 (EUR/GBP) or Jan 2017 (JPY) -- known broker tick-history-depth artifact already documented in dates.md, not a bug. Trade counts (17-22/pair over 6 years) are well below the project's 200-trade significance bar -- expected for this ~12/year/pair calendar-event cadence, flagged per project convention, not an error. report.htm/journal.csv/summary.csv per pair in v1/EURUSD, v1/GBPUSD, v1/USDJPY; 59 trades appended to journal/trades.csv. Not judging results -- handing to Researcher."
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23",
+        "note": "[Researcher 2026-09-23]: calendar-accuracy investigated first, confirmed real but not material to v1's 59 trades (zero false-positive trades, but real events silently skipped -- Jan 2020, Jan 2021 confirmed). Signal quality diagnosis: EUR/GBP correlated (not independent), JPY exactly flat/uninformative, sample too thin (59 << 200) to conclude either way. Single motivated change specified in v2/spec.json: replace day-of-month calendar rule with a hardcoded actual-BLS-release-date table (2017-2025), all other v1 parameters locked. See v1/review.md."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "[EA Coder 2026-09-23, v2]: single motivated change from v1 coded exactly per v2/spec.json -- replaced the 'first Friday of month, days 1-7' calendar-trigger approximation with a hardcoded 108-entry table (2017.01-2025.12) of actual historical BLS Employment Situation (NFP) release dates; isNfpDay is now driven purely by exact calendar-date table membership, not day-of-week. Compiled clean, 0 errors/0 warnings, first attempt (strategies/day_trading/nfp_fade/v2/compile.log). Diff against v1/strategy.mq5 confirmed the ONLY code changes are: version string, the new NfpReleaseTable/IsNfpReleaseDate addition, and the single ResetDayState line selecting isNfpDay from the table instead of the day-of-week/day<=7 rule -- measurement window, threshold, SL/TP multiples, hold time, sizing, pairs, safety rules, and the (unchanged, reused-as-is) US/broker dual-DST conversion logic are byte-for-byte identical to v1. Table built from BLS's own documented scheduling rule (release = the Friday 3 calendar weeks after the Saturday closing the reference week containing the 12th of the reported month), derived programmatically and cross-validated against 10+ independently-known real release dates already confirmed elsewhere in this project's own review.md/backtest trade dates (e.g. 2019.07.05, 2020.03.06, 2022.02.04, 2022.04.01, 2022.10.07, 2023.11.03, 2024.03.08) before being trusted for the full table -- all matched exactly, no discrepancies. Sanity checks: 108 entries total (12/year x 9 years, exact), no duplicate dates, all consecutive gaps 25-40 days (no missing/doubled months), and the two spec-confirmed exceptions verified present and correct: 2020.01.10 (not the plain-rule's 2020.01.03) and 2021.01.08 (not the plain-rule's 2021.01.01, a holiday). CONFIDENCE LEVEL (explicit, per instruction): HIGH confidence in the table's general derivation rule and the two originally-confirmed January exceptions (cross-validated against 10+ independent known-good dates plus the exact BLS documented scheduling formula). MODERATE confidence (not independently re-verified against BLS's own published archive due to no live internet/browse access in this coding session -- built from trained knowledge plus the derived-formula cross-check, not a fresh fetch of bls.gov's own schedule PDFs) on: (a) two additional same-pattern exceptions this session identified beyond the two the spec named -- 2025.01.10 (not the plain rule's 2025.01.03, same early-January push pattern as 2020/2021) and 2025.07.03 (a Thursday, not the plain rule's 2025.07.04, which would have landed on the July 4th Independence Day holiday); and (b) the remaining ~100 non-exception entries, which follow the validated formula mechanically but were not each individually fact-checked one by one against a primary source. Recommend Backtester/Researcher spot-check a handful of 2023-2025 (out-of-sample, never checked by anyone before this) dates against a live BLS calendar source when convenient, same spirit as the DST table's own spot-check in v1. Flagging per project's honesty standard rather than presenting as fully verified."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23",
+        "note": "[Backtester 2026-09-23, v2]: compiled clean (0 errors/0 warnings), in-sample 2017-2022 backtested per-pair (M1, Model=4, Login=YOUR_ACCOUNT_LOGIN, independent single-symbol runs, identical pipeline/config to v1 -- only source difference between versions is v2's hardcoded 108-entry BLS release-date table replacing v1's day-of-month approximation). Results: EURUSD.r 22 trades (v1: 22, +0), PF 1.46 (v1: 1.46), net +$116.86 (v1: +$116.86) -- unchanged, v1 already caught every EUR/GBP-relevant trigger date in this window; GBPUSD.r 20 trades (v1: 17, +3), PF 0.73 (v1: 0.47), net -$96.04 (v1: -$158.00); USDJPY 25 trades (v1: 20, +5), PF 1.31 (v1: 1.00), net +$101.29 (v1: -$0.09). COMBINED: 67 trades (v1: 59, +8, +13.6%) -- the trade-count delta directly confirms the completeness fix is working (more real events now caught, no false positives observed in the added trades' dates), though still well below the project's 200-trade significance bar. Combined net +$122.11 (v1: -$41.23) -- flips from slightly negative to slightly positive combined, driven mainly by GBP/JPY's added trades landing net favorable this run, not a signal-quality change (SL/TP/threshold/sizing all byte-for-byte locked from v1). report.htm/journal.csv/summary.csv per pair in v2/EURUSD, v2/GBPUSD, v2/USDJPY; 67 trades appended to journal/trades.csv. Not judging results -- handing to Researcher."
+      },
+      {
+        "status": "refining",
+        "date": "2026-09-23",
+        "note": "[Researcher 2026-09-23, v2 review]: diffed v1 vs v2 journals trade-by-trade for GBP/JPY to isolate exactly which dates changed. Confirmed EUR's v2 sample is byte-identical to v1's (zero new EUR data, not independent replication). GBP (0.47->0.73) and JPY (1.00->1.31) moves are each driven by only 3-5 net new trades -- noise-level at this sample size, not a resolvable trend. Also surfaced a NEW bug distinct from v2's already-completed calendar-completeness fix: v2's three per-symbol NFP tables disagree with each other and with v1's own validated ground truth on 2 confirmed dates (GBPUSD.r missing 2022.02.04; USDJPY missing 2022.04.01 -- both previously confirmed real BLS releases in v1/review.md). DECISION: refining (v3) -- reconcile the three tables into one verified/identical source, restore the 2 confirmed drops, full byte-diff check, spot-check the unverified 2023-2025 window, before spending the one-shot OOS validation on this config. NOTE (2026-09-23, superseded below): this diagnosis turned out to be based on a false premise -- see the 'backtested' entry dated 2026-09-23 further down for the correction. See v2/review.md and v3/spec.json."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-23",
+        "note": "[EA Coder 2026-09-23, v3]: compiled clean, 0 errors/0 warnings, first attempt. IMPORTANT ARCHITECTURE CORRECTION for Researcher: v2/review.md's diagnosis assumed three independently-typed per-symbol NfpReleaseTable copies (one per EA instance). Checked the actual v1/v2 source tree before coding (per instruction) and found this premise does not match the real codebase -- nfp_fade has always been exactly ONE strategy.mq5 file (generic via _Symbol), deployed unmodified to all three chart instances (EURUSD.r/GBPUSD.r/USDJPY); there has never been a second, independently-typed table copy to drift from. Both 'dropped' dates (2022.02.04, 2022.04.01) were already present in v2's single table. The GBP/JPY trade-count differences the review traced per-pair most likely came from this EA's own signal filters (spike-vs-threshold, spread, data availability) legitimately differing per instrument on the same calendar date, not from the calendar table -- flagging this back rather than silently accepting the narrative or fabricating three separate files to match it. Kept the existing single-file convention for v3 (strictly safer against this class of drift, since there is no second copy to diverge). TABLE-IDENTITY ACCEPTANCE CHECK: passed by construction (one file, one NfpReleaseTable array, same compiled .ex5 used for all three symbol deployments -- confirmed by direct inspection, no separate per-symbol files exist to diff). FULL AUDIT: wrote a throwaway Python re-derivation of BLS's documented rule (Friday 20 calendar days after the Saturday closing the reference week containing the 12th of the REPORTED month) and checked all 108 table entries against it -- 104/108 match the base rule exactly (including both dates v3/spec.json asked to restore -- already present), remaining 4/108 are exactly the 4 already-documented exceptions (2020.01.10, 2021.01.08, 2025.01.10, 2025.07.03), zero new undocumented anomalies found. 2023-2025 OOS spot-check (12 dates, no internet access this session): HIGH confidence (specific recalled real-world event tied to the exact date) for 2023.03.10 (SVB collapse), 2023.04.07 (Good Friday release), 2023.09.01 (pre-Labor Day), 2024.07.05 (day after Jul 4 holiday), 2024.08.02 ('Sahm rule' selloff), 2025.01.10 and 2025.07.03 (already-documented exceptions, independently recalled). MODERATE confidence (matches rule/typical pattern, not tied to a specific recalled event -- recommend external check if convenient) for 2023.11.03, 2024.01.05, 2024.11.01, 2025.02.07, 2025.09.05. FLAGGED for explicit external verification before relying on it during OOS validation: 2025.10.03 -- the Oct 2025 US federal government shutdown began 2025.10.01 and could plausibly have delayed that release in a way not reliably recallable this session; if wrong, only that single month's trade per pair is affected. Only code diff from v2 is the version string and documentation/comment blocks (confirmed via diff -- zero logic, parameter, table-value, or code-path changes). See strategies/day_trading/nfp_fade/v3/strategy.mq5 header and ea-coder/lessons.md for full detail. Handing back for Backtester to re-run the same in-sample range (2017.01.01-2022.12.31) per v2/review.md's next step."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23",
+        "note": "[Researcher 2026-09-23, correction + final in-sample decision -- v3/review.md]: EA Coder's v3 investigation confirmed the v2/review.md 'three disagreeing per-symbol tables' diagnosis was based on a false premise -- nfp_fade has always been ONE strategy.mq5 file deployed unmodified to all three chart instances, never three independently-typed tables to drift from; both dates flagged as 'dropped' (2022.02.04, 2022.04.01) were already present in v2's single table the whole time. EA Coder's full (not sampled) audit of all 108 table entries against BLS's documented scheduling rule found zero anomalies (104/108 match the base rule, 4/108 are exactly the already-known exceptions). v3 as built is a confirmed no-op vs v2 (version string/comments only, diff-verified). Re-verified v2's numbers directly against summary.csv, not trusted from any prior write-up: EURUSD.r 22 trades/PF 1.46/net +$116.86; GBPUSD.r 20 trades/PF 0.73/net -$96.04; USDJPY 25 trades/PF 1.31/net +$101.29; combined 67 trades/net +$122.11 -- these stand as the genuine, verified in-sample result (v3 would reproduce them exactly, no re-backtest needed). Also re-verified v1's GBP PF (0.47, not the 0.79 an earlier task brief had mis-cited) directly against v1/GBPUSD/summary.csv -- the correction already in v2/review.md is accurate. DECISION: proceed to out-of-sample validation (2023.01.01-2025.12.31), not discard -- 67 combined trades is thin (<200-trade bar) but not a structural red flag (no correlated blowup, all max DD <2%, net positive across all three pairs combined), same 'genuinely too thin to conclude, not decisively negative' bucket month_end_fix_reversal (174-176 combined trades) already proceeded through OOS from. Next step: Backtester runs the out-of-sample window once, unmodified, on v3's locked config (functionally identical to v2's) into v3/validation/, per this project's one-shot OOS discipline -- no further changes regardless of outcome. See v2/review.md's appended correction and v3/review.md."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-23",
+        "note": "[Backtester 2026-09-23, v3 out-of-sample]: ran the locked v3 config (confirmed no-op vs v2, per v3/review.md) once, unmodified, against the out-of-sample window (2023.01.01-2025.12.31), three independent per-pair single-symbol runs (EURUSD.r, GBPUSD.r, USDJPY -- Model=4, Login=YOUR_ACCOUNT_LOGIN, M1, deposit 10000 USD) into v3/EURUSD/validation, v3/GBPUSD/validation, v3/USDJPY/validation. Results: EURUSD.r 14 trades, PF 0.91, net -$11.84, WR 50.00%, max equity DD 0.78% (balance DD 0.49%); GBPUSD.r 15 trades, PF 1.72, net +$93.85, WR 53.33%, max equity DD 0.68% (balance DD 0.55%); USDJPY 14 trades, PF 0.71, net -$53.18, WR 35.71%, max equity DD 1.21% (balance DD 1.16%). Combined: 43 trades, net +$28.83. No pair repeated its in-sample sign/magnitude (EUR IS PF 1.46 -> OOS 0.91; GBP IS PF 0.73 -> OOS 1.72; JPY IS PF 1.31 -> OOS 0.71) -- flagging as a finding, not drawing a conclusion (Researcher's job). Explicitly checked EA Coder's flagged calendar-accuracy risk (2025.10.03, unverified given the Oct 2025 US government shutdown): zero trades fired on or near that date in any pair's journal (last trade every pair 2025.08.01) -- no calendar-uncertainty actually reached this result. 43 trades appended to journal/trades.csv tagged version=v3/validation. See v3/comparison.md. Not judging results -- handing to Researcher for the final verdict."
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-23",
+        "note": "[Researcher 2026-09-23, VERDICT.md]: no pair held its in-sample sign/magnitude out-of-sample (EUR/JPY weakened to negative, GBP strengthened to positive) -- the inverse of month_end_fix_reversal's 'every pair improved, no exceptions' pattern, and structurally consistent with noise split three ways at n=14-15/pair. Combined IS+OOS 110 trades / net +$150.94 remains under the 200-trade bar and is economically negligible. Direct journal inspection found 86% of OOS trades exit via the 60-minute hold-time backstop rather than the take-profit (only 1/43 trades ever reached the 1.3x reversion target) -- a mechanism-level explanation for the noise-like result, not acted on with a v4 per the project's no-re-optimize-after-OOS discipline and the strategy's permanent ~12-events/year/pair sample ceiling. See VERDICT.md, STRATEGY.md, strategies/_graveyard/nfp_fade/REASON.md."
+      }
+    ]
+  },
+  "day_trading/fix_run_momentum": {
+    "category": "day_trading",
+    "status": "discarded",
+    "current_version": "v1",
+    "created": "2026-09-24",
+    "last_updated": "2026-09-25",
+    "notes": "Generated by Researcher to keep the pipeline non-idle (orchestrator rule 4 -- all other strategies were at approved_live/live_candidate/parked/discarded). Trades EURUSD.r/GBPUSD.r/USDJPY on M1. Thesis: the WM/Reuters 4pm London FX fix is the subject of real, named regulatory enforcement (2014-2015 FCA/DOJ/CFTC fines totaling $10bn+ against Barclays/Citigroup/JPMorgan/RBS/UBS for FX desks -- in chatrooms nicknamed 'The Cartel' -- coordinating to 'bang the close', pre-positioning into the 1-5 minutes before the 16:00:00 London fix snapshot), producing a well-documented 'V-shaped' pattern: a directional run INTO the fix, then a partial reversion after. `wm_fix_reversal` (parked) already tested the reversion half (fading the post-fix spike) and found only a thin edge (OOS PF ~1.04-1.06) with a correlated-loss problem across pairs. This strategy deliberately tested the OTHER half never traded in this project: going WITH the pre-fix run (momentum, not fade), entering at 17:59:00 server (15:59:00 London) on an adaptive-threshold-filtered 3-minute pre-fix move (reusing wm_fix_reversal v2's proven volatility-adaptive calibration, not a fixed pip bar) and exiting within 2 minutes (18:01:00 server / 16:01:00 London) -- before the giveback wm_fix_reversal targets has time to develop. Zero parameters swept for v1 (first specified configuration). demo_criteria: min_trades=25, min_days=21. See strategies/day_trading/fix_run_momentum/v1/spec.json and dates.md (2018.01.01-2022.12.31 in-sample / 2023.01.01-2025.12.31 out-of-sample, standard project split). RESULT: all 6 legs (3 pairs x IS/OOS) lost money -- EURUSD.r IS PF 0.72/net -$360.68/132 trades, OOS PF 0.30/net -$524.67/52 trades; GBPUSD.r IS PF 0.52/net -$803.27/149 trades, OOS PF 0.48/net -$561.91/83 trades; USDJPY IS PF 0.18/net -$1,494.99/129 trades (max equity DD 15.08%, right at the project's 15% kill-switch threshold), OOS PF 0.56/net -$396.55/87 trades. 632 combined trades clears the 200-trade significance bar comfortably -- a well-evidenced, not thin-sample, negative result. REVIEWED 2026-09-25 (Researcher, v1/review.md): journal-ledger cross-check (root EURUSD.r IS leg) confirmed the reported PF/net-profit numbers directly from the raw per-trade journal (balance_after ends exactly at 10000-360.68), independent of any summary.csv parsing question. Mechanism check: ~95% of trades in every leg exit via the fixed 2-minute time backstop rather than tagging SL/TP (both sized symmetrically at 1.0x the measured run), so with a near-1:1 payout the outcome is effectively a test of whether price kept moving the same direction for 2 more minutes -- and win rate came in AT OR BELOW the ~50% breakeven point in 5 of 6 legs (as low as 27.1% for USDJPY in-sample), the opposite signature of a momentum-continuation thesis, and consistent instead with mild reversion (read together with wm_fix_reversal's own thin-but-positive result fading the OTHER half of the same V-shaped pattern). Both EA Coder-flagged spec-translation judgment calls (entry_time '18:59:00' vs '17:59:00' contradiction; MinHistoryToAdapt=20 vs wm_fix_reversal v2's actual coded default of 5) were checked and ruled out as explanations for the negative result -- entry_time's 17:59:00 resolution is the only internally-consistent reading with no plausible alternative; MinHistoryToAdapt's effect is confined to at most the first ~20 daily evaluations of each multi-year window, only LOOSENS (not tightens) the entry threshold during that period (opposite direction from the 'starving a valid threshold' concern), and losses show no concentration in the early-warmup trades on spot-check. DECISION: discarded -- a genuine thesis failure (the pre-fix momentum/'banging the close' half of this documented fix flow does not have a retail-detectable edge at 1-minute entry resolution with a 2-minute hold), not a v1-specific implementation bug. No v2/parameter sweep attempted; flipping direction to fade would just re-derive wm_fix_reversal's own (already-tested, parked) mechanism on a tighter window, not a productive next iteration of this thesis. Moved to strategies/_graveyard/fix_run_momentum/REASON.md. See v1/review.md for full detail.",
+    "history": [
+      {
+        "status": "new",
+        "date": "2026-09-24",
+        "note": "[Researcher 2026-09-24]: spec.json + dates.md written, no strategy.mq5 yet -- next actor is EA Coder."
+      },
+      {
+        "status": "coded",
+        "date": "2026-09-25",
+        "note": "[EA Coder 2026-09-25]: strategy.mq5 written from spec.json, single-symbol-per-chart pattern (one EA per pair, not the portfolio harness) per spec.json/CLAUDE.md default. Reused wm_fix_reversal v2 / month_end_fix_reversal v3 as reference implementations for the fix-window timing and volatility-adaptive threshold design, but restructured the measurement window to sit entirely BEFORE the fix (17:56:00-17:59:00 server) rather than straddling it, flipped direction to momentum (buy on rise, sell on fall, opposite of the fade convention), and used a tight fix+1min (18:01:00 server) scheduled exit -- exactly 2 minutes after entry, per spec. Full safety ledger (InpAllowLiveAccount live-account guard, consecutive-loss halt, daily-loss halt, drawdown kill-switch with balancePeak tracking) included from this first version, copied line-for-line from gotobi/v1/strategy.mq5, per the standing lesson in ea-coder/lessons.md. No chart status panel yet (correctly out of scope pre-live_candidate per .claude/agents/ea-coder.md). Compiled clean, 0 errors/0 warnings, first attempt. One judgment call flagged for Researcher: spec.json entry.entry_time field literally reads \"18:59:00 -> immediately at measurement-window close, 17:59:00 server time\" -- the leading 18:59:00 contradicts the rest of the same sentence, the measurement_window field (ends 17:59:00), and the exit rule (fix+1min = 18:01:00, only consistent with a 17:59:00 entry). Coded against 17:59:00 as the only internally-consistent value; treated 18:59:00 as a typo, documented prominently in the strategy.mq5 header rather than silently picking one without flagging it. Also noted (not changed): spec.json states MinHistoryToAdapt=20 as part of \"reusing wm_fix_reversal v2s already-validated calibration\", but wm_fix_reversal v2s actual coded default for that input is 5, not 20 -- coded exactly to spec.jsons literal stated value (20) since that is what v1 explicitly specifies, but flagging the mismatch between the spec text narrative and the wm_fix_reversal v2 source of truth for Researcher to reconcile if it matters. See strategies/day_trading/fix_run_momentum/v1/strategy.mq5 and strategies/day_trading/fix_run_momentum/v1/compile.log."
+      },
+      {
+        "status": "backtested",
+        "date": "2026-09-25",
+        "note": "[Backtester 2026-09-25]: All 6 legs run (in-sample 2018.01.01-2022.12.31, out-of-sample 2023.01.01-2025.12.31, M1, Model=4, Login=YOUR_ACCOUNT_LOGIN, deposit 10000 USD), per-pair subfolders mirroring month_end_fix_reversal/v1 layout. Root EURUSD.r: IS 132 trades PF 0.72 (net -360.68, DD 4.74%), OOS 52 trades PF 0.30 (net -524.67, DD 5.62%). GBPUSD.r: IS 149 trades PF 0.52 (net -803.27, DD 8.65%), OOS 83 trades PF 0.48 (net -561.91, DD 6.21%). USDJPY (no .r suffix): IS 129 trades PF 0.18 (net -1494.99, DD 14.96%/15.08% equity -- close to the project's 15% kill-switch threshold, flagging for Researcher), OOS 87 trades PF 0.56 (net -396.55, DD 4.89%). All 6 legs produced non-zero trade counts and real report.htm/journal.csv/summary.csv on disk (verified directly, not inferred from exit codes). No pipeline issues encountered -- single terminal64.exe instance confirmed absent before each of the 6 sequential runs, no stray-instance collisions, no symbol-resolution failures (EURUSD.r/GBPUSD.r/USDJPY all resolved as expected per established broker-suffix convention). All 632 trades across the 6 legs appended to journal/trades.csv tagged with strategy id/version/symbol. Every leg lost money in-sample and out-of-sample (PF well below 1.0 across the board) -- this is a results finding for Researcher's review, not a pipeline problem; no interpretation attempted here."
+      },
+      {
+        "status": "discarded",
+        "date": "2026-09-25",
+        "note": "[Researcher 2026-09-25, v1 review]: all 6 legs (3 pairs x IS/OOS) lost money, 632 combined trades clears the 200-trade bar -- a well-evidenced negative result, not a thin sample. Journal-ledger cross-check corroborated the reported numbers independently of summary.csv parsing. Mechanism check found ~95% of trades exit via the fixed 2-minute time backstop with a near-1:1 SL:TP payout, and win rate sat at or below the ~50% breakeven point in 5 of 6 legs (27.1% for USDJPY in-sample) -- the opposite signature of a momentum-continuation thesis, consistent instead with mild reversion. Both EA Coder-flagged judgment calls (entry_time contradiction, MinHistoryToAdapt=20 vs wm_fix_reversal v2's actual 5) were checked and ruled out as explanations: entry_time's 17:59:00 resolution was the only internally-consistent reading, and MinHistoryToAdapt's effect is confined to a small warmup window, only loosens (not tightens) selectivity, and shows no correlation with where losses actually occurred. DECISION: discarded -- genuine thesis failure (pre-fix momentum has no retail-detectable edge at this resolution/hold), not a v1 implementation bug. No v2 written. See v1/review.md and strategies/_graveyard/fix_run_momentum/REASON.md."
+      }
+    ]
+  }
+}

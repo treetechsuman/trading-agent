@@ -1,0 +1,69 @@
+{
+  "id": "day_trading/london_breakout_retest",
+  "version": "v1",
+  "category": "day_trading",
+  "origin": "user-specified -- exact entry/exit thesis and trigger conditions provided by the user ('London Breakout & Retest'), verbatim, not designed by Researcher. Researcher filled in only the operational parameters the user left unstated (SL placement, TP/exit rule, H1 filter rule, position sizing, safety rules, skip conditions) -- each field below marked 'Researcher's own call' is exactly that, distinct from the user's exact words, for future review to see what to re-examine if this strategy underperforms.",
+  "symbols": ["EURUSD.r", "GBPUSD.r", "USDJPY"],
+  "one_ea_per_symbol_chart": true,
+  "timeframes": { "execution": "M15", "context": "H1" },
+  "thesis": "London-session breakout of the Asian session's range, entered not on the initial breakout impulse (fakeout risk, explicitly why the user's spec excludes it) but on a pullback retest of the broken boundary with a rejection-candle confirmation. This is a delayed, confirmation-gated CONTINUATION entry -- structurally distinct from both prior Asian-range/London-session strategies on this account: london_orb (discarded) traded the immediate breakout with no retest/confirmation gate at all; london_range_fade (parked) bets on reversion back into the range (the opposite direction). This strategy is neither -- it agrees with london_orb's continuation direction but adds the retest+rejection gate london_orb never had, which is the entire point of testing it despite london_orb's discard.",
+  "asian_range": {
+    "window_utc": "00:00-06:00",
+    "window_server_time": "02:00-08:00 (Nov-Feb), 03:00-09:00 (Mar-Oct) -- hardcoded per calendar month, not computed via TimeGMT() (unreliable in Strategy Tester), same convention as gotobi's broker_clock_conversion",
+    "rule": "track the highest high and lowest low across all completed M15 bars in this window"
+  },
+  "session_window": {
+    "window_utc": "07:00-11:00",
+    "window_server_time": "09:00-13:00 (Nov-Feb), 10:00-14:00 (Mar-Oct)",
+    "rule": "only look for the impulse breakout, retest, and rejection trigger within this window. If no valid retest+rejection trade has entered by window close, NO TRADE that day for that pair -- confirmed explicitly, matches the user's framing that setups only form within this window."
+  },
+  "entry": {
+    "step_1_impulse": "wait for a completed M15 bar whose CLOSE is beyond the Asian high (bullish) or Asian low (bearish) -- close-based confirmation, not an intrabar wick touch, matching this project's existing bar-close-confirmation convention (london_range_fade). This impulse bar itself is never traded, per the user's explicit instruction.",
+    "step_2_invalidation": "if price later closes (a completed M15 bar) back across the OPPOSITE side of the Asian range before a valid retest+rejection trade has entered, the setup is invalidated for the day -- no trade for that pair.",
+    "step_3_retest": "after a valid impulse, wait for a subsequent M15 bar to touch (intrabar wick touch is sufficient here -- unlike the impulse bar) the broken boundary level: old Asian high acts as new support for a bullish break, old Asian low acts as new resistance for a bearish break.",
+    "step_4_rejection_trigger": "the M15 bar that touches the boundary (or a later bar still touching it, if the first touch doesn't itself qualify) must be a rejection candle in the breakout direction, defined as EITHER: (a) pin bar -- opposite-direction wick >= 2x the candle body, body <= 35% of the candle's total high-low range, close in the breakout direction; OR (b) engulfing -- candle's body (open-close range) fully engulfs the prior candle's body, closes in the breakout direction. [Researcher's own formalization of 'pin bar / engulfing' into implementable numeric thresholds -- the user named the patterns, not the exact ratios; standard technical-analysis definitions used here.]",
+    "trade_direction": "long on a bullish breakout+retest+rejection, short on a bearish one",
+    "max_one_trade_per_pair_per_day": true,
+    "execution": "market order immediately on the confirmed rejection candle's close (bar-close-triggered, consistent with london_range_fade's entry timing)"
+  },
+  "h1_context_filter": {
+    "rule": "the most recently completed H1 candle (as of the M15 rejection trigger) must close in the same direction as the breakout: H1 close > H1 open for a bullish breakout, H1 close < H1 open for a bearish breakout. Skip the trade (no trade that day for that pair) if H1 disagrees.",
+    "reasoning": "Researcher's own interpretation of the user's unspecified 'H1 directional context' -- chosen for simplicity (uses the H1 candle's own body direction, no new indicator) over an H1 moving-average-slope alternative, to keep the first version easy to reason about and reproduce live. Can be swapped for an MA-slope filter in a later version if this proves too weak or too strict."
+  },
+  "stop_loss": {
+    "rule": "beyond the rejection candle's wick extreme in the trade direction: rejection candle low - SLBufferPips for longs, rejection candle high + SLBufferPips for shorts",
+    "SLBufferPips": 3,
+    "reasoning": "Researcher's own call. SL anchored to the actual invalidation point of the pattern (a small buffer beyond the wick that would falsify the rejection reading) rather than an arbitrary fixed pip count -- standard convention for retest-entry breakout trades. Small non-zero buffer to avoid getting stopped by noise re-touching the exact wick level."
+  },
+  "take_profit": {
+    "rule": "TPMultiplier x stop-loss distance (in price), TPMultiplier default 2.0 (2R)",
+    "reasoning": "Researcher's own call. Unlike london_range_fade (a reversion thesis with a natural structural target -- the opposite side of the range), this is a CONTINUATION thesis: price is expected to move away from the range, not back into it, so a structural range-based target doesn't fit. A fixed R-multiple off the already-structural (wick-anchored) stop distance is the standard convention for retest-entry breakout continuation systems. 2R chosen as a conservative starting point, tunable via sweep in a later version."
+  },
+  "exit": {
+    "eod_flat_server_hour": 18,
+    "rule": "force-close any open position at 18:00 server time if neither SL nor TP has been hit -- day-trading only, never holds overnight, same convention as london_range_fade's 20:00 EOD-flat rule. Single fixed hour, not seasonally adjusted, since it sits comfortably after the 09:00-14:00 (server, either DST season) trading window regardless of season -- same simplification range_fade uses for its own EOD-flat hour."
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 0.5,
+    "reasoning": "Defaulting to this project's 0.5%-per-pair convention (gotobi, yen_fiscal_repatriation) rather than the 1.0% used by london_range_fade/wm_fix_reversal, because three pairs trade independently off a shared session event -- up to 1.5% combined exposure at risk if all three set up the same morning, consistent with how gotobi documents its own combined exposure."
+  },
+  "safety_rules": {
+    "consecutive_loss_pause": { "threshold": 6, "resume": "first day of next month, or InpResetLedgerNow=true" },
+    "daily_loss_stop_percent": 5.0,
+    "max_drawdown_stop_percent": 15.0,
+    "never_scale_up_after_loss": true,
+    "max_one_position_per_pair_per_day": true,
+    "live_account_opt_in_required": "InpAllowLiveAccount must be explicitly true"
+  },
+  "skip_conditions": [
+    "spread > 3 pips (pip defined per instrument's own convention -- USDJPY 2-decimal pip, EURUSD.r/GBPUSD.r 4-decimal pip)",
+    "insufficient margin",
+    "computed lot size below broker minimum (never rounded up)"
+  ],
+  "tunable_parameters_to_sweep": "SLBufferPips, TPMultiplier, pin-bar wick/body ratio thresholds, H1 filter design (candle-direction vs MA-slope alternative) -- none swept yet, this is the first specified configuration, matching month_end_fix_reversal's 'single pre-specified configuration first' methodology.",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 21,
+    "rationale": "Standard day_trading category anchor -- at most one setup per pair per day, expected cadence similar to london_orb/london_range_fade's own session-range setups (not every day qualifies: impulse, retest, and rejection all have to align within the 4-hour window)."
+  }
+}

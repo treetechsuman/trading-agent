@@ -1,0 +1,56 @@
+{
+  "id": "day_trading/nfp_fade",
+  "version": "v1",
+  "category": "day_trading",
+  "origin": "Researcher-designed, 2026-09-23, per user-approved research into fading the Non-Farm Payrolls (NFP) initial volatility spike -- documented in Linda Raschke & Larry Connors, 'Street Smarts' (1996), as an intraday 'News Strategy' professional bond/currency traders use to fade the herd's initial overreaction to scheduled 8:30am ET economic reports, corroborated by current practitioner sources describing the same fade-the-initial-overreaction structure specifically around NFP. Reuses the general 'measure a spike, then fade it' structural pattern already validated by wm_fix_reversal v2 / month_end_fix_reversal v1, but every numeric parameter below is independently re-derived for NFP's distinct character (a scheduled economic-data release whose impact depends on surprise-vs-consensus magnitude, producing larger and more binary moves than a mechanical fixing spike) rather than copied from those strategies' locked values. Full reasoning for every decision below is in dates.md.",
+  "symbols": ["EURUSD.r", "GBPUSD.r", "USDJPY"],
+  "one_ea_per_symbol_chart": true,
+  "thesis": "NFP releases at 8:30am US Eastern on the first Friday of every month trigger an immediate algorithmic/headline-driven price spike whose initial direction and magnitude is frequently an overreaction to the surprise vs. consensus forecast, which mean-reverts once slower discretionary/fundamental flow and profit-taking from the initial movers offset the knee-jerk move. This is the same 'fade the herd's initial reaction to a scheduled news release' structure Raschke & Connors describe professional traders using around 8:30am economic releases generally, applied specifically to NFP -- the report with the largest, most reliably market-moving surprise component of any regular US economic release.",
+  "calendar_trigger": {
+    "rule": "first Friday of each calendar month",
+    "code_friendly_definition": "for day = 1 to 7 in the current month: if DayOfWeek(year, month, day) == FRIDAY, that day is the trigger day for this month; there is always exactly one such day in days 1-7, stop at the first match.",
+    "known_simplification": "pure calendar-day rule, no live economic-calendar lookup -- deliberately avoids MT5 Strategy Tester's unreliable/absent live economic-calendar feed, per project instruction. Does NOT account for the rare historical instances where the BLS has shifted the actual NFP release off the first Friday of the month (e.g. New Year's Day/holiday conflicts in some Januaries). Accepted simplification for v1 scope -- flagged explicitly below (see dates.md) for Backtester to spot-check a handful of real historical NFP release dates against this rule's computed output before trusting backtest results."
+  },
+  "entry": {
+    "side": "sell if price rose into/through the measurement window, buy if it fell -- direction determined per-event by that release's own reaction, not fixed (same convention as wm_fix_reversal, unlike gotobi's fixed sell-only direction)",
+    "release_time_et": "08:30 US Eastern (the BLS's standard scheduled NFP release time)",
+    "measurement_window": "release time (T+0) to T+10 minutes",
+    "measurement_window_reasoning": "NFP's initial algorithmic/headline-driven reaction typically continues developing for several minutes as the surprise is digested and secondary algo/momentum flow piles in, unlike wm_fix_reversal's near-instantaneous mechanical fixing spike (measured over ~7 minutes bracketing a single reference-rate print). T+10 gives the initial reaction room to fully develop before measuring it. It also means the entry itself (at T+10, not T+0) is placed after the worst of the T+0 spread-widening/slippage spike that is well documented to occur in the seconds around a headline release, reducing realistic execution risk relative to entering directly into the print.",
+    "entry_delay": "enter immediately at the close of the measurement window (T+10 min), not at T+0",
+    "broker_clock_conversion": "NOT a flat offset -- varies by calendar month, and for November specifically, by year. See dates.md for the full US-Eastern-DST x broker-server-DST combined derivation, a precise algorithmic rule (not a lookup table), and a 9-year hand-verified cross-check (2017-2025). Confidence flagged explicitly in dates.md -- Backtester should spot-check a few real historical NFP bar timestamps before trusting results.",
+    "trigger": "measured T+0-to-T+10 move (pips) >= max(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * rolling average of this pair's own last SpikeHistoryWindowEvents NFP-window moves). Falls back to the floor alone until MinHistoryToAdapt events of that pair's own history exist.",
+    "MinSpikeSizePipsFloor": 15,
+    "MinSpikeVsAvgMultiplier": 1.2,
+    "SpikeHistoryWindowEvents": 12,
+    "MinHistoryToAdapt": 6,
+    "threshold_reasoning": "Both the floor and the multiplier are set materially different from wm_fix_reversal/month_end_fix_reversal's values, deliberately: (1) MinSpikeSizePipsFloor=15 (vs. their 5) reflects NFP's characteristically larger initial reaction relative to an ordinary WM-fix-window move. (2) MinSpikeVsAvgMultiplier=1.2 (vs. their locked 2.0) is deliberately much lower: the WM fix happens every trading day, so its filter has to do the heavy lifting of separating genuine large-flow days from routine daily noise out of ~250 candidate days/year. NFP's calendar trigger already does that selection -- every candidate day is already a scheduled, market-moving news event, not an arbitrary day -- so the filter's job here is narrower: exclude only the subset of releases that printed close to consensus and produced little real reaction (a low signal-to-transaction-cost trade), not to hunt for statistically unusual days the way the fix filter does. A 2.0x bar applied on top of an already-event-selected sample would over-filter an already-low-frequency (~12/year/pair) trigger down toward statistical insignificance. (3) SpikeHistoryWindowEvents=12 (~1 year of NFP history) and MinHistoryToAdapt=6 are expressed in event-count, not calendar days, because NFP is inherently a monthly-cadence event -- a calendar-day rolling window (like wm_fix_reversal's 20 trading days) would barely span one prior NFP event.",
+    "skip_conditions": ["spike below the adaptive threshold", "spread > MaxSpreadPips (4 pips default) at the T+10 entry point", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default), placed beyond entry in the spike's own direction",
+  "take_profit": "spike size * TPMultiplier (1.3 default), back through the pre-release price level",
+  "sl_tp_reasoning": "SLMultiplier kept at 1.0 (same discipline as wm_fix_reversal/month_end_fix_reversal) rather than widened, deliberately: NFP's more binary character cuts both ways -- some prints are genuine overreactions that revert, others are genuine trend-confirming surprises that keep running. A directional fade bet with no defense against the latter case should be cut quickly at a disciplined 1x stop, not given extra room, matching this project's own lesson from yen_fiscal_repatriation (a stop-loss-only structure with no risk control against a real trend/macro force performed badly). TPMultiplier is set to 1.3, modestly above the 1:1 used for the two fixing-based strategies: practitioner accounts of NFP fades (including the Street Smarts framing itself) describe the reversion, when it happens, as frequently overshooting back through the pre-release level rather than stopping exactly at breakeven -- the reversion is driven by momentum-trader unwind and second-wave fundamental positioning, not a mechanical return to a fixing-driven supply/demand equilibrium the way a WM/Reuters fix reversion is. Net effect: breakeven win rate for this R:R is 1/(1+1.3) = ~43.5%, lower than the 50% a flat 1:1 would require, giving the strategy a small structural cushion given this is an unvalidated first attempt at this event type.",
+  "exit": {
+    "rule": "market close HoldMinutes (60 default) after the measurement window closes (i.e. T+70 from release), regardless of P&L, unless SL/TP hit first",
+    "hold_time_reasoning": "Longer than wm_fix_reversal/month_end_fix_reversal's 30-minute hold: NFP's larger, more violent initial move plausibly takes longer to fully mean-revert than a fixing spike (which resolves almost immediately once the fix prints and the reference-rate-driven flow clears). 60 minutes gives the reversion more runway while still keeping this a same-session day trade, not an overnight hold.",
+    "end_of_day_flat_hour_server": 22
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 0.5,
+    "per_pair": true,
+    "reasoning": "0.5% (the project's standard day_trading anchor) rather than wm_fix_reversal/month_end_fix_reversal's 1.0%, for two reasons: (1) this is the first attempt at this event category for this project -- unlike those two, which had already been validated as a mechanism before being extended, NFP's fade behavior is untested here, so starting conservative is prudent; (2) NFP's larger measured spikes mechanically produce wider stop distances (SL = 1.0x a bigger spike than a typical fix move), so 0.5% risk keeps dollar risk per trade proportionate rather than compounding 'bigger move' with 'bigger risk-per-trade' on an unproven mechanism."
+  },
+  "safety_rules": {
+    "consecutive_loss_pause": { "threshold": 6, "resume": "first day of next month, or InpResetLedgerNow=true" },
+    "daily_loss_stop_percent": 5.0,
+    "max_drawdown_stop_percent": 15.0,
+    "never_scale_up_after_loss": true,
+    "max_one_position_per_pair_per_event": true,
+    "live_account_opt_in_required": "InpAllowLiveAccount must be explicitly true"
+  },
+  "tunable_parameters_to_sweep": "none for v1 -- every numeric value above (measurement window, threshold floor/multiplier, SL/TP multiples, hold time, risk%) is pre-specified with documented reasoning before any backtest is run, following month_end_fix_reversal's and yen_fiscal_repatriation's house rule against sweeping-then-locking on a first attempt at a new mechanism.",
+  "demo_criteria": {
+    "min_trades": 15,
+    "min_days": 90,
+    "rationale": "Low-frequency calendar-event strategy -- only ~12 candidate days/year/pair before the volatility-adaptive filter narrows it further (same low-frequency profile as gotobi and month_end_fix_reversal). The standard day_trading category anchor (25-30 trades/14-21 days) doesn't fit this cadence; min_days=90 (~3 months) is the binding constraint, not trade count."
+  }
+}

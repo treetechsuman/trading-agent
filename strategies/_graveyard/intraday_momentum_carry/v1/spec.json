@@ -1,0 +1,29 @@
+{
+  "id": "day_trading/intraday_momentum_carry",
+  "version": "v1",
+  "category": "day_trading",
+  "origin": "Researcher-designed, 2026-09-23, directly implementing a published academic finding rather than an internally-invented technical pattern -- see dates.md for citations (Gao/Han/Li/Zhou 2018 JFE; Baltussen/van Vliet/Ye 2021).",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1 (tick-driven for the window-boundary price captures; timeframe is otherwise cosmetic)",
+  "thesis": "The London session's first half-hour return predicts its last half-hour return in the same direction -- a documented, peer-reviewed, cross-asset-class (including currencies) intraday momentum effect, not an internally-invented technical pattern.",
+  "broker_clock_conversion": "08:00 London = 10:00 server, 16:00 London = 18:00 server, constant year-round.",
+  "entry": {
+    "measurement": "first_move_pips = price at 10:30 server - price at 10:00 server (sign only, no magnitude filter in v1 -- stays faithful to the literature's construction)",
+    "trigger": "at 17:30 server (start of the last half-hour), enter in the direction of first_move_pips's sign",
+    "skip_conditions": ["spread > MaxSpreadPips (2.0 default)", "computed lot size below broker minimum (never rounded up)", "MinFirstMovePips filter if set > 0 (off by default)"]
+  },
+  "stop_loss": "fixed 20 pips (day-trading scale, matches gotobi's convention -- the research studies return predictability, not a specific stop-loss discipline, so this is this project's own risk-management choice)",
+  "take_profit": "none -- closed by the clock at session end (18:00 server), same convention as gotobi/wm_fix_reversal",
+  "exit": {
+    "rule": "market close at session end (18:00 server) if SL not hit first"
+  },
+  "position_sizing": {
+    "risk_percent_of_balance": 0.75
+  },
+  "tunable_parameters_to_sweep": "StopLossPips, MinFirstMovePips (currently 0/off, faithful to the literature) -- not yet swept, v1 tests the pure literature-faithful construction first before any tuning.",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 21,
+    "rationale": "Standard day_trading category anchor -- one trade per trading day expected, similar cadence to gotobi/wm_fix_reversal."
+  }
+}

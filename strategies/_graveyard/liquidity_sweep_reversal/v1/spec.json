@@ -1,0 +1,27 @@
+{
+  "id": "scalping/liquidity_sweep_reversal",
+  "version": "v1",
+  "category": "scalping",
+  "origin": "Researcher-designed, 2026-09-23, after deep external research per user's 'think out of the box' instruction. Distinct from every prior scalping attempt in this project: based on concrete recent price structure (swing highs/lows) rather than a statistical rolling-average threshold.",
+  "symbol": "GBPUSD.r",
+  "timeframe": "M5",
+  "thesis": "A documented retail/institutional pattern: price briefly wicks through a resting liquidity level (a recent swing high/low, where stop-losses and pending orders cluster) before reversing, because the move was a liquidity grab rather than a genuine breakout. Detected as: a bar's high/low clears a recent (SwingLookback bars) swing level by at least MinSweepPips, but its close rejects back inside the prior range.",
+  "entry": {
+    "trigger": "bearish sweep (high > recent swing high + MinSweepPips, close < swing high) -> sell; bullish sweep (low < recent swing low - MinSweepPips, close > swing low) -> buy",
+    "skip_conditions": ["bar sweeps both sides (ambiguous)", "spread > MaxSpreadPips", "already in a position", "MaxTradesPerDay reached", "computed lot size below broker minimum"]
+  },
+  "stop_loss": "beyond the sweep bar's extreme (high + StopBufferPips for shorts, low - StopBufferPips for longs)",
+  "take_profit": "stop distance * TPMultiplier (1.5 default)",
+  "exit": {
+    "rule": "market close MaxHoldMinutes after entry if SL/TP not hit, or immediately at session end (18:00 server)"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 0.3
+  },
+  "tunable_parameters_to_sweep": "SwingLookback, MinSweepPips, StopBufferPips, TPMultiplier -- not yet swept, v1 baseline uses reasonable starting defaults.",
+  "demo_criteria": {
+    "min_trades": 45,
+    "min_days": 12,
+    "rationale": "Scalping category anchor from CLAUDE.md."
+  }
+}

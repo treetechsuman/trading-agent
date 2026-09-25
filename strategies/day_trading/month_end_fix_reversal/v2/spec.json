@@ -1,0 +1,35 @@
+{
+  "id": "day_trading/month_end_fix_reversal",
+  "version": "v2",
+  "category": "day_trading",
+  "origin": "SAFETY-ONLY patch on top of v1, 2026-09-23. Live Manager attempted to deploy v1 to the LIVE account (approved_live, EURUSD.r + GBPUSD.r, RiskPercent=0.5 reduced size) and hit a hard stop: v1 had no live-account safety gate at all (grep for LiveAccount/TRADE_MODE/REAL returned zero matches), unlike sibling gotobi/v1 which refuses to start on ACCOUNT_TRADE_MODE_REAL unless InpAllowLiveAccount is explicitly set true. v2 adds that exact same gate, mirroring gotobi/v1's pattern line-for-line. No re-optimization performed. No entry/exit/threshold/sizing logic touched.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "Unchanged from v1: large asset managers, pension funds, and corporates rebalance currency hedges at month-end based on that month's realized equity performance, with flow concentrating in the final 2-3 trading days and peaking on the last day, specifically around the London 4pm fix. Hypothesis: fix-window spikes on these specific days are more often genuine flow-driven (and thus more reliably reversion-prone) than an average day's spike.",
+  "entry": {
+    "calendar_filter": "only trade if today is within TradeLastNDaysOfMonth (3 default) calendar days of month-end",
+    "measurement_window": "17:55-18:02 server time (15:55-16:02 London), identical to wm_fix_reversal",
+    "trigger": "fix-window move >= max(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * rolling average of the fix window's own recent history, fed every day regardless of the calendar filter)",
+    "side": "fade -- sell if price rose into the fix, buy if it fell"
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default)",
+  "take_profit": "spike size * TPMultiplier (1.0 default)",
+  "exit": {
+    "rule": "market close 30 minutes after the measurement window closes if SL/TP not hit, or end-of-day flat at 22:00 server"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0
+  },
+  "tunable_parameters_to_sweep": "Unchanged from v1 -- not the subject of this version. TradeLastNDaysOfMonth (3 default -- how many days before month-end the flow concentration research describes), MinSpikeVsAvgMultiplier -- not yet swept.",
+  "safety_patch": {
+    "change": "Added input bool InpAllowLiveAccount = false; plus an OnInit() guard that calls Alert()+Print() and returns INIT_FAILED if AccountInfoInteger(ACCOUNT_TRADE_MODE) == ACCOUNT_TRADE_MODE_REAL and InpAllowLiveAccount is still false -- byte-for-byte the same pattern as strategies/day_trading/gotobi/v1/strategy.mq5.",
+    "scope": "Safety-only. No entry/exit/threshold/sizing/timing logic changed. Diff-verified against v1/strategy.mq5 by EA Coder -- only differences are the version string/header comments, the new input declaration, and the OnInit() guard clause.",
+    "backtest_impact": "None. ACCOUNT_TRADE_MODE is never ACCOUNT_TRADE_MODE_REAL inside the Strategy Tester (tester accounts report ACCOUNT_TRADE_MODE_DEMO or ACCOUNT_TRADE_MODE_CONTEST), so the new guard clause is a no-op during any backtest run. All v1 in-sample/out-of-sample results (v1/review.md, VERDICT.md, v1_portfolio/review.md) apply unchanged to v2 -- no re-backtest performed or needed for this version.",
+    "requested_by": "Live Manager, 2026-09-23, after a blocked live-deployment attempt on v1 (see strategies/registry.json's day_trading/month_end_fix_reversal history and live-manager/lessons.md)."
+  },
+  "demo_criteria": {
+    "min_trades": 20,
+    "min_days": 60,
+    "rationale": "Unchanged from v1. Low frequency by design (only ~3 trading days/month qualify at all, further filtered by the spike threshold) -- similar low-frequency profile to gotobi, anchor adjusted accordingly rather than the standard day_trading category anchor."
+  }
+}

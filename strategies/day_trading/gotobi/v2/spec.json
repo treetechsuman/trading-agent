@@ -1,0 +1,52 @@
+{
+  "id": "day_trading/gotobi",
+  "version": "v2",
+  "category": "day_trading",
+  "origin": "DISPLAY-ONLY patch on top of v1, 2026-09-23. Adds the on-chart Comment() status panel now required (before live_candidate/live_candidate_final) by .claude/agents/ea-coder.md's 'Chart status panel' convention: identity/DEMO-LIVE line, Validated-symbols line, risk/drawdown line, Status line (RUNNING/HALTED/INIT FAILED/WARNING-not-validated), Safety line, Position line, Last line, plus a gotobi-specific block showing today's gotobi-day eligibility and the next entry window/countdown. No entry/exit/sizing/timing/safety logic changed from v1 at all -- v1's full safety ledger (consecutiveLosses, dailyHaltActive, drawdownHaltActive, balancePeak, InpAllowLiveAccount) is carried over unmodified. All of v1's review.md/VERDICT.md findings and the resulting approved_live status apply unchanged to v2, since nothing that affects trading behavior was touched. Only addition to inputs: InpValidatedSymbols (comma-separated, sourced from this same field below) which the panel reads to render the 'Validated:' line and to flag a WARNING if attached to an unvalidated symbol.",
+  "symbols": ["USDJPY", "EURJPY.r", "GBPJPY.r"],
+  "one_ea_per_symbol_chart": true,
+  "thesis": "Japanese corporate 'gotobi' payment days cause a predictable pre-fixing USD-demand spike around 09:45 Tokyo time; USDJPY/EURJPY/GBPJPY tend to rise into it and drop back right after. Sell into the drop.",
+  "trading_days": {
+    "rule": "5th, 10th, 15th, 20th, 25th, and last-day-of-month (30th, except February uses its actual last day)",
+    "weekend_handling": "skip the date entirely if it falls on Saturday/Sunday -- no make-up day",
+    "approx_frequency": "4-6 trading days/month per pair, ~50 trades/year per pair"
+  },
+  "entry": {
+    "side": "sell only",
+    "time_utc": "00:45",
+    "broker_clock_conversion": "hardcoded per calendar month, not computed via TimeGMT() (unreliable in Strategy Tester): 03:45 server time Mar-Oct, 02:45 server time Nov-Feb",
+    "late_entry_grace_minutes": 10,
+    "skip_conditions": ["spread > 3 pips", "insufficient margin", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss_pips": 20,
+  "take_profit": "none -- closed by the clock, not a price target",
+  "exit": {
+    "time_utc": "01:20",
+    "hold_minutes_nominal": 35,
+    "rule": "market close at nominal entry time + 35 minutes, regardless of P&L, unless the stop was already hit"
+  },
+  "position_sizing": {
+    "risk_percent_of_balance": 0.5,
+    "per_pair": true,
+    "note": "0.5% risked per pair independently; up to 1.5% of account at risk across all three pairs on a gotobi day if run live as three independent EA instances"
+  },
+  "safety_rules": {
+    "consecutive_loss_pause": { "threshold": 6, "resume": "first day of next month, or InpResetLedgerNow=true" },
+    "daily_loss_stop_percent": 5.0,
+    "max_drawdown_stop_percent": 15.0,
+    "never_scale_up_after_loss": true,
+    "max_one_position_per_pair_per_day": true,
+    "live_account_opt_in_required": "InpAllowLiveAccount must be explicitly true"
+  },
+  "chart_status_panel": {
+    "added_in": "v2",
+    "InpValidatedSymbols_default": "USDJPY,EURJPY.r,GBPJPY.r",
+    "note": "Display-only convention per .claude/agents/ea-coder.md -- does not affect trading logic."
+  },
+  "tunable_parameters_swept": "none -- every rule above was specified directly in the brief, not fit to historical data. In-sample/out-of-sample split here mainly checks whether the event-driven premise holds and whether real trading costs erode the edge, not whether Researcher curve-fit something.",
+  "demo_criteria": {
+    "min_trades": 15,
+    "min_days": 90,
+    "rationale": "Low-frequency, calendar-event strategy (~4-6 trading days/month per pair) -- the day_trading category anchor (25-30 trades/14-21 days) doesn't fit; 15 trades needs roughly 3 months per pair at this cadence, so min_days=90 (calendar days elapsed) is the binding constraint, not trade count."
+  }
+}

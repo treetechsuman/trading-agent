@@ -1,0 +1,36 @@
+{
+  "id": "day_trading/london_range_fade",
+  "version": "v2",
+  "category": "day_trading",
+  "origin": "Researcher-designed, iterated from v1 after v1's yearly breakdown showed a COVID-crash-driven losing period",
+  "symbol": "EURUSD.r",
+  "timeframe": "M15",
+  "thesis": "Fade a break of the pre-London consolidation range, betting on reversion back into the range rather than continuation. A prior continuation-based strategy (london_orb) failed on the same setup, motivating the opposite (fade) thesis.",
+  "range_window": { "start_hour_server": 6, "end_hour_server": 8 },
+  "filters": {
+    "min_range_size_pips": 15,
+    "max_range_vs_rolling_avg_multiplier": 2.0,
+    "range_history_window_days": 20,
+    "note": "v2 adds the rolling-average volatility filter on top of v1's breakout-buffer + min-range floor, specifically to filter out COVID-crash-style volatility shock days"
+  },
+  "entry": {
+    "trigger": "completed M15 bar closes more than 10 pips beyond the range high/low (bar-close confirmation, not intrabar touch)",
+    "side": "sell if closed above range (fade back down), buy if closed below range (fade back up)",
+    "max_one_trade_per_day": true
+  },
+  "stop_loss": "1x day's range size beyond the breakout extreme",
+  "take_profit": "1x day's range size back across the range",
+  "exit": {
+    "end_of_day_flat_hour_server": 20,
+    "rule": "force-close any open position at 20:00 server time -- day trading only, never holds overnight"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0
+  },
+  "tunable_parameters_swept": "BreakoutBufferPips, MinRangeSizePips, SLMultiplier, TPMultiplier (v1 sweep); MaxRangeVsAvgMultiplier and RangeHistoryWindow added and tuned in v2",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 21,
+    "rationale": "Standard day_trading category anchor applies -- ~40 trades/year historically, no unusual frequency profile."
+  }
+}

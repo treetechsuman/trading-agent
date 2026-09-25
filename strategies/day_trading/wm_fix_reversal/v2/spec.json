@@ -1,0 +1,32 @@
+{
+  "id": "day_trading/wm_fix_reversal",
+  "version": "v2",
+  "category": "day_trading",
+  "origin": "Researcher redesign, 2026-09-22 -- v1's fixed MinSpikeSizePips threshold produced strong quality but out-of-sample trade frequency collapsed ~85-90% in the calmer 2023-2025 window (EURUSD zero trades in 2023) because a fixed pip bar doesn't adapt to changing ambient volatility. Applies the same fix that worked for london_range_fade v2's volatility filter: compare today's move to a rolling average of ITS OWN recent history (apples-to-apples), not a fixed number or a mismatched-timeframe indicator.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "Same as v1: fade the WM/Reuters 4pm London fix volatility spike. Change is purely in the entry filter -- now relative to recent ambient fix-window volatility instead of an absolute pip count.",
+  "broker_clock_conversion": "Same as v1: 16:00:00 London = 18:00:00 this broker's server time, constant year-round.",
+  "entry": {
+    "measurement_window": "17:55-18:02 server time (15:55-16:02 London), same as v1",
+    "trigger": "today's fix-window move >= max(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * rolling average of the last SpikeHistoryWindow trading days' fix-window moves). Falls back to the floor alone until MinHistoryToAdapt days of history exist.",
+    "side": "sell if price rose into the fix, buy if price fell into the fix",
+    "skip_conditions": ["spike below the adaptive threshold", "spread > MaxSpreadPips (3 pips default)", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default), beyond entry in the spike's own direction",
+  "take_profit": "spike size * TPMultiplier (1.0 default), back toward the pre-fix price level",
+  "exit": {
+    "rule": "market close 30 minutes (HoldMinutes) after the measurement window closes, regardless of P&L, unless SL/TP hit first",
+    "end_of_day_flat_hour_server": 22
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0
+  },
+  "tunable_parameters_to_sweep": "MinSpikeVsAvgMultiplier, SpikeHistoryWindow, MinSpikeSizePipsFloor -- v1's MinSpikeSizePips=12 fixed threshold is replaced entirely by this adaptive mechanism. Not yet swept -- v2 baseline uses reasonable starting defaults (multiplier=1.5, window=20, floor=5) pending an in-sample sweep.",
+  "success_criteria_for_this_redesign": "The specific thing v2 needs to demonstrate that v1 didn't: trade frequency in the out-of-sample (2023-2025) period should NOT collapse relative to in-sample the way v1's did -- if 2023 still goes nearly silent under the adaptive threshold, the redesign hasn't solved the actual problem.",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 21,
+    "rationale": "Standard day_trading category anchor, unchanged from v1."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "day_trading/yen_fiscal_repatriation",
+  "version": "v1",
+  "category": "day_trading",
+  "origin": "Researcher-designed, 2026-09-23, sourced from practitioner/policy-institution FX-flow literature on Japanese fiscal year-end seasonality (see dates.md for citations). Built per user request to research a new strategy from FX research literature, specifically prioritizing a structural/institutional mechanism over a generic cross-asset statistical anomaly, after day_trading/intraday_momentum_carry (Gao/Han/Li/Zhou 2018 JFE intraday momentum) was discarded for being too generic/thin once realistic FX costs applied.",
+  "symbols": ["USDJPY", "EURJPY.r", "GBPJPY.r"],
+  "one_ea_per_symbol_chart": true,
+  "thesis": "Japanese institutional investors (life insurers, pension funds, megabanks) with large foreign-currency-denominated asset holdings are documented to reduce net FX exposure, adjust hedge ratios upward, and repatriate realized gains ahead of Japan's fiscal year-end (31 March) and fiscal half-year (30 September), for balance-sheet reporting and regulatory-capital purposes. This is a distinct institutional participant and distinct calendar driver from day_trading/gotobi (import/export corporates settling trade invoices, recurring every 5 days) and from day_trading/month_end_fix_reversal (generic multi-currency asset-manager hedge rebalancing at every calendar month-end, tied to the WM/Reuters 4pm fix specifically) -- this flow is JPY-specific, semi-annual (not monthly or 5-day), tied to Japan's own fiscal accounting calendar, and driven by balance-sheet/reporting motives rather than trade settlement or routine hedge rebalancing. Net documented direction is consistently JPY-positive (yen strengthening) as overseas exposure is pared back and hedges are added into the fiscal period end. Sell (short) the JPY crosses during this window.",
+  "trading_window": {
+    "rule": "trade every weekday (Mon-Fri) falling within the final FiscalWindowDays (15 default) calendar days of March, and within the final FiscalWindowDays calendar days of September -- calendar-day window, not a trading-day count, deliberately kept simple/deterministic to implement (mirrors month_end_fix_reversal's TradeLastNDaysOfMonth pattern rather than requiring a holiday-aware trading-day counter)",
+    "weekend_handling": "skip Saturday/Sunday entirely, no make-up day, same convention as gotobi",
+    "approx_frequency": "~11 weekdays/window x 2 windows/year x 3 pairs -- roughly 60-70 trade opportunities/year across the portfolio, ~20-25/year per pair, before any stop-outs or skip conditions"
+  },
+  "entry": {
+    "side": "sell only",
+    "time_utc": "00:15",
+    "rationale_for_time": "shortly after Tokyo session open (00:00 UTC = 09:00 JST), giving the open's initial spread/liquidity a few minutes to normalize before entry, consistent with the mechanism being a session-long institutional positioning flow rather than a single fixing-instant spike (contrast with gotobi's fix-instant entry at 00:45 UTC and wm_fix_reversal's fix-window fade)",
+    "broker_clock_conversion": "hardcoded per calendar month, not computed via TimeGMT() (unreliable in Strategy Tester), same approach as gotobi: 03:15 server time Mar-Oct, 02:15 server time Nov-Feb -- confirm actual server DST boundary dates against gotobi's already-validated conversion table before coding",
+    "skip_conditions": ["spread > 3 pips", "insufficient margin", "computed lot size below broker minimum (never rounded up)"]
+  },
+  "stop_loss_pips": 40,
+  "take_profit": "none -- closed by the clock, not a price target, same philosophy as gotobi (the flow's daily magnitude is expected to vary; a fixed take-profit could cut short a genuinely strong flow day)",
+  "exit": {
+    "time_utc": "09:00",
+    "hold_hours_nominal": 8.75,
+    "rule": "market close at 09:00 UTC regardless of P&L (before London session flow unrelated to this mechanism dominates), unless the stop was already hit -- same trading day only, no overnight hold"
+  },
+  "position_sizing": {
+    "risk_percent_of_balance": 0.5,
+    "per_pair": true,
+    "note": "0.5% risked per pair independently, same convention as gotobi; up to 1.5% of account at risk across all three pairs on a qualifying day if run live as three independent EA instances"
+  },
+  "safety_rules": {
+    "consecutive_loss_pause": { "threshold": 6, "resume": "first day of next qualifying window, or InpResetLedgerNow=true" },
+    "daily_loss_stop_percent": 5.0,
+    "max_drawdown_stop_percent": 15.0,
+    "never_scale_up_after_loss": true,
+    "max_one_position_per_pair_per_day": true,
+    "live_account_opt_in_required": "InpAllowLiveAccount must be explicitly true"
+  },
+  "tunable_parameters_to_sweep": "NONE for v1 -- FiscalWindowDays (15), StopLossPips (40), entry/exit times are Researcher-proposed initial values based on the mechanism's reasoning (institutional flow builds gradually across roughly the second half of each fiscal-period-ending month, per the cited literature), not fit to any backtest result. Per this project's own lesson from month_end_fix_reversal (a single pre-specified configuration is stronger evidence than the best of a swept range), evaluate this exact configuration first and only sweep FiscalWindowDays/StopLossPips in a v2 if v1's in-sample review shows a real but miscalibrated signal worth tuning -- do not lock the best-looking value from a first-pass sweep.",
+  "demo_criteria": {
+    "min_trades": 25,
+    "min_days": 45,
+    "rationale": "Semi-annual window strategy (~2x 15-calendar-day windows/year per pair) -- similar low/clustered-frequency profile to gotobi and month_end_fix_reversal, day_trading category default (25-30 trades/14-21 days) adjusted on min_days only: 45 days is needed to span one full fiscal window (March or September) plus buffer, since trades cluster entirely inside these windows and zero trades will occur outside them."
+  }
+}

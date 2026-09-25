@@ -1,0 +1,324 @@
+//+------------------------------------------------------------------+
+//| month_end_fix_reversal v1 - PORTFOLIO TEST HARNESS.                  |
+//|                                                                      |
+//| Not a new strategy version -- identical per-pair rules to v1's       |
+//| strategy.mq5 (same fix-window measurement, volatility-adaptive       |
+//| spike threshold, month-end calendar filter, SL/TP, 30-min exit),     |
+//| just restructured to run all three pairs (EURUSD.r, GBPUSD.r,        |
+//| USDJPY) from ONE EA instance against ONE simulated account, to       |
+//| test the true combined-account exposure/drawdown when all three      |
+//| pairs risk their per-pair % on the same month-end fix day at once.   |
+//| v1's normal per-pair backtests are three independent single-symbol   |
+//| runs and cannot show this. This is exactly the check that revealed   |
+//| wm_fix_reversal's hidden correlated-loss problem (combined drawdown  |
+//| WORSE than any single pair, from same-day correlated losses) when    |
+//| it was finally run there -- doing it here before any live            |
+//| recommendation rather than after one, this time.                     |
+//|                                                                      |
+//| Attach to any one chart as the tick-driving source (used: EURUSD.r)  |
+//| -- trades are placed on all three symbols by name regardless of      |
+//| which chart the EA is on.                                            |
+//|                                                                      |
+//| IMPORTANT (lesson from gotobi/v1_portfolio and                       |
+//| wm_fix_reversal/v2_portfolio, applied here from the start): a        |
+//| single CTrade object only tracks ONE "current" magic number.         |
+//| trade.SetExpertMagicNumber(magic) must be called again immediately   |
+//| before EVERY PositionClose() call, not just before the opening       |
+//| Sell()/Buy() -- otherwise closes for whichever symbol wasn't         |
+//| entered last each day get silently rejected forever (retcode        |
+//| 10006), leaving a position stuck open indefinitely.                  |
+//+------------------------------------------------------------------+
+#property copyright "month_end_fix_reversal"
+#property version   "1.00"
+
+#include <Trade/Trade.mqh>
+CTrade trade;
+
+#define NPAIRS 3
+string PairSymbols[NPAIRS] = {"EURUSD.r", "GBPUSD.r", "USDJPY"};
+
+// -- Fix window timing (broker/server clock) -----------------------------
+input int    FixHourServer     = 18;   // 16:00 London == 18:00 server, year-round
+input int    FixMinuteServer   = 0;
+input int    PreFixMinutes     = 5;
+input int    PostFixMinutes    = 2;
+input int    HoldMinutes       = 30;
+
+// -- Month-end calendar filter ----------------------------------------------
+input int    TradeLastNDaysOfMonth = 3;
+
+// -- Volatility-adaptive spike filter --------------------------------------
+input double MinSpikeVsAvgMultiplier = 2.0;
+input double MinSpikeSizePipsFloor   = 5.0;
+input int    SpikeHistoryWindow      = 20;
+input int    MinHistoryToAdapt       = 5;
+
+// -- Trade parameters ------------------------------------------------------
+input double SLMultiplier      = 1.0;
+input double TPMultiplier      = 1.0;
+input double RiskPercent       = 1.0;  // % of account equity risked, PER PAIR
+input double MaxSpreadPips     = 3.0;
+input int    EndOfDayHour      = 22;
+input int    MagicNumberBase   = 20260091; // pair i gets MagicNumberBase + i
+
+double pipSize[NPAIRS];
+
+int      currentDay = -1;
+bool     isMonthEndWindow = false;
+datetime windowStart = 0;
+datetime windowEnd   = 0;
+datetime scheduledExitTime = 0;
+
+double   priceAtWindowStart[NPAIRS];
+bool     haveWindowStartPrice[NPAIRS];
+bool     windowEvaluated[NPAIRS];
+bool     tradeTakenToday[NPAIRS];
+
+// Three separate resizable 1D arrays (not a 2D array of fixed size) so each
+// pair's history genuinely tracks the SpikeHistoryWindow input rather than
+// a hardcoded slot count that could silently overflow if that input changes
+// (same lesson as gotobi/wm_fix_reversal's own portfolio harnesses).
+double   spikeHistoryEUR[];
+double   spikeHistoryGBP[];
+double   spikeHistoryJPY[];
+int      spikeHistoryCount[NPAIRS];
+int      spikeHistoryNext[NPAIRS];
+
+bool IsLeapYear(int y)
+{
+   return (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0));
+}
+
+int DaysInMonth(int mon, int year)
+{
+   switch(mon)
+   {
+      case 1: case 3: case 5: case 7: case 8: case 10: case 12: return 31;
+      case 4: case 6: case 9: case 11: return 30;
+      case 2: return IsLeapYear(year) ? 29 : 28;
+   }
+   return 30;
+}
+
+int OnInit()
+{
+   trade.SetExpertMagicNumber((ulong)MagicNumberBase);
+
+   ArrayResize(spikeHistoryEUR, SpikeHistoryWindow);
+   ArrayResize(spikeHistoryGBP, SpikeHistoryWindow);
+   ArrayResize(spikeHistoryJPY, SpikeHistoryWindow);
+
+   for(int i = 0; i < NPAIRS; i++)
+   {
+      SymbolSelect(PairSymbols[i], true);
+      int d = (int)SymbolInfoInteger(PairSymbols[i], SYMBOL_DIGITS);
+      double point = SymbolInfoDouble(PairSymbols[i], SYMBOL_POINT);
+      pipSize[i] = (d == 3 || d == 5) ? point * 10 : point;
+      spikeHistoryCount[i] = 0;
+      spikeHistoryNext[i] = 0;
+   }
+
+   MqlDateTime s;
+   TimeToStruct(TimeCurrent(), s);
+   currentDay = s.year * 1000 + s.day_of_year;
+   ResetDayState(TimeCurrent());
+
+   return(INIT_SUCCEEDED);
+}
+
+int HourOf(datetime t)
+{
+   MqlDateTime s;
+   TimeToStruct(t, s);
+   return s.hour;
+}
+
+double AverageSpikeHistory(int i)
+{
+   double sum = 0;
+   if(i == 0)
+   {
+      for(int k = 0; k < spikeHistoryCount[i]; k++)
+         sum += spikeHistoryEUR[k];
+   }
+   else if(i == 1)
+   {
+      for(int k = 0; k < spikeHistoryCount[i]; k++)
+         sum += spikeHistoryGBP[k];
+   }
+   else
+   {
+      for(int k = 0; k < spikeHistoryCount[i]; k++)
+         sum += spikeHistoryJPY[k];
+   }
+   return sum / spikeHistoryCount[i];
+}
+
+void PushSpikeHistory(int i, double spikePips)
+{
+   if(i == 0)
+      spikeHistoryEUR[spikeHistoryNext[i]] = spikePips;
+   else if(i == 1)
+      spikeHistoryGBP[spikeHistoryNext[i]] = spikePips;
+   else
+      spikeHistoryJPY[spikeHistoryNext[i]] = spikePips;
+   spikeHistoryNext[i] = (spikeHistoryNext[i] + 1) % SpikeHistoryWindow;
+   if(spikeHistoryCount[i] < SpikeHistoryWindow)
+      spikeHistoryCount[i]++;
+}
+
+void ResetDayState(datetime now)
+{
+   MqlDateTime s;
+   TimeToStruct(now, s);
+
+   int lastDay = DaysInMonth(s.mon, s.year);
+   isMonthEndWindow = (s.day > lastDay - TradeLastNDaysOfMonth);
+
+   MqlDateTime f = s;
+   f.hour = FixHourServer;
+   f.min  = FixMinuteServer;
+   f.sec  = 0;
+   datetime fixTime = StructToTime(f);
+
+   windowStart = fixTime - PreFixMinutes * 60;
+   windowEnd   = fixTime + PostFixMinutes * 60;
+   scheduledExitTime = windowEnd + HoldMinutes * 60;
+
+   for(int i = 0; i < NPAIRS; i++)
+   {
+      haveWindowStartPrice[i] = false;
+      windowEvaluated[i] = false;
+      tradeTakenToday[i] = false;
+      priceAtWindowStart[i] = 0;
+   }
+}
+
+double CalculateLotSize(string sym, double slDistance)
+{
+   double riskAmount = AccountInfoDouble(ACCOUNT_EQUITY) * RiskPercent / 100.0;
+   double tickValue = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+   double tickSize  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
+   double valuePerPriceUnit = tickValue / tickSize;
+   double lots = riskAmount / (slDistance * valuePerPriceUnit);
+
+   double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
+   double minLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(sym, SYMBOL_VOLUME_MAX);
+
+   lots = MathFloor(lots / step) * step;
+   lots = MathMin(maxLot, lots);
+   if(lots < minLot)
+      return 0.0;
+   return lots;
+}
+
+void ManageOpenPosition(int i, datetime now)
+{
+   string sym = PairSymbols[i];
+   ulong magic = (ulong)(MagicNumberBase + i);
+
+   if(!PositionSelect(sym))
+      return;
+   if(PositionGetInteger(POSITION_MAGIC) != magic)
+      return;
+
+   bool eod = (HourOf(now) >= EndOfDayHour);
+   if(eod || now >= scheduledExitTime)
+   {
+      trade.SetExpertMagicNumber(magic); // see header note -- must re-set before every close
+      trade.PositionClose(sym);
+   }
+}
+
+void EvaluateFixWindow(int i, datetime now)
+{
+   string sym = PairSymbols[i];
+
+   // Feed the spike-history baseline every day regardless of the month-end
+   // filter, so the rolling average reflects genuine ambient volatility,
+   // not just month-end days.
+   if(!haveWindowStartPrice[i] && now >= windowStart && now < windowEnd)
+   {
+      priceAtWindowStart[i] = SymbolInfoDouble(sym, SYMBOL_BID);
+      haveWindowStartPrice[i] = true;
+      return;
+   }
+
+   if(!windowEvaluated[i] && haveWindowStartPrice[i] && now >= windowEnd)
+   {
+      windowEvaluated[i] = true;
+
+      double priceNow = SymbolInfoDouble(sym, SYMBOL_BID);
+      double spike = priceNow - priceAtWindowStart[i];
+      double spikePips = MathAbs(spike) / pipSize[i];
+
+      PushSpikeHistory(i, spikePips);
+
+      if(!isMonthEndWindow || tradeTakenToday[i])
+         return;
+
+      double threshold;
+      if(spikeHistoryCount[i] < MinHistoryToAdapt)
+         threshold = MinSpikeSizePipsFloor;
+      else
+         threshold = MathMax(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * AverageSpikeHistory(i));
+
+      if(spikePips < threshold)
+         return;
+
+      double spreadPips = (SymbolInfoDouble(sym, SYMBOL_ASK) - SymbolInfoDouble(sym, SYMBOL_BID)) / pipSize[i];
+      if(spreadPips > MaxSpreadPips)
+         return;
+
+      double slDistance = spikePips * pipSize[i] * SLMultiplier;
+      double tpDistance  = spikePips * pipSize[i] * TPMultiplier;
+      ulong magic = (ulong)(MagicNumberBase + i);
+
+      if(spike > 0)
+      {
+         double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+         double sl = bid + slDistance;
+         double tp = bid - tpDistance;
+         double lots = CalculateLotSize(sym, sl - bid);
+         if(lots > 0)
+         {
+            trade.SetExpertMagicNumber(magic);
+            if(trade.Sell(lots, sym, bid, sl, tp))
+               tradeTakenToday[i] = true;
+         }
+      }
+      else
+      {
+         double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+         double sl = ask - slDistance;
+         double tp = ask + tpDistance;
+         double lots = CalculateLotSize(sym, ask - sl);
+         if(lots > 0)
+         {
+            trade.SetExpertMagicNumber(magic);
+            if(trade.Buy(lots, sym, ask, sl, tp))
+               tradeTakenToday[i] = true;
+         }
+      }
+   }
+}
+
+void OnTick()
+{
+   datetime now = TimeCurrent();
+   MqlDateTime s;
+   TimeToStruct(now, s);
+   int dayId = s.year * 1000 + s.day_of_year;
+   if(dayId != currentDay)
+   {
+      currentDay = dayId;
+      ResetDayState(now);
+   }
+
+   for(int i = 0; i < NPAIRS; i++)
+      ManageOpenPosition(i, now);
+
+   for(int i = 0; i < NPAIRS; i++)
+      EvaluateFixWindow(i, now);
+}

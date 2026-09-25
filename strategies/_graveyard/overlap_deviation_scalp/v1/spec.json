@@ -1,0 +1,28 @@
+{
+  "id": "scalping/overlap_deviation_scalp",
+  "version": "v1",
+  "category": "scalping",
+  "origin": "Researcher-designed, 2026-09-22/23, direct continuation of the retired overlap_momentum_scalp line -- reuses its one validated mechanism (deviation-from-SMA fade) unchanged, testing across multiple pairs to find a better gross-edge-to-fixed-commission ratio than EURUSD.r showed.",
+  "symbol": "to be determined per test run -- candidates GBPUSD.r, USDJPY, GBPJPY.r",
+  "timeframe": "M1",
+  "thesis": "Same as overlap_momentum_scalp v3: fade price's deviation from a 20-period M1 SMA during the London/NY overlap, volatility-adaptive threshold. Hypothesis under test: a more volatile pair may carry the same fixed per-lot commission as a smaller fraction of a larger typical target, making the mechanism economically viable where EURUSD wasn't.",
+  "entry": {
+    "trigger": "deviation from 20-period M1 SMA >= max(MinDeviationPipsFloor, MinDeviationVsAvgMultiplier * rolling average of the last DeviationHistoryWindow session bars' own deviations)",
+    "side": "fade -- sell if price above the mean, buy if below",
+    "skip_conditions": ["deviation below adaptive threshold", "spread > MaxSpreadPips", "already in a position", "MaxTradesPerDay reached", "computed lot size below broker minimum"]
+  },
+  "stop_loss": "max(MinStopPips, deviation size in pips * SLMultiplier)",
+  "take_profit": "deviation size in pips * TPMultiplier",
+  "exit": {
+    "rule": "market close MaxHoldMinutes after entry if SL/TP not hit, or immediately at session end (18:00 server)"
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 0.3
+  },
+  "tunable_parameters_to_sweep": "MinDeviationVsAvgMultiplier, SLMultiplier, TPMultiplier -- per-symbol, not yet swept for any new symbol.",
+  "demo_criteria": {
+    "min_trades": 45,
+    "min_days": 12,
+    "rationale": "Scalping category anchor from CLAUDE.md."
+  }
+}

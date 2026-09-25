@@ -1,0 +1,10 @@
+# Real account settings (see scripts/local_settings.example.py for the template)
+scripts/local_settings.py
+
+# Python
+__pycache__/
+*.pyc
+
+# OS cruft
+.DS_Store
+Thumbs.db
