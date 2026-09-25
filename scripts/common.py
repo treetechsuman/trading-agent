@@ -9,7 +9,7 @@ from pathlib import Path
 TERMINAL_EXE = Path(r"C:\Program Files\FP Markets MetaTrader 5\terminal64.exe")
 METAEDITOR_EXE = Path(r"C:\Program Files\FP Markets MetaTrader 5\MetaEditor64.exe")
 MT5_DATA_DIR = Path(
-    r"C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011"
+    r"C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011"
 )
 
 try:

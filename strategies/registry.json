@@ -59,10 +59,10 @@
   },
   "day_trading/gotobi": {
     "category": "day_trading",
-    "status": "approved_live",
+    "status": "live",
     "current_version": "v2",
     "created": "2026-09-22",
-    "last_updated": "2026-09-23",
+    "last_updated": "2026-09-25",
     "notes": "User-specified (not Researcher-designed) fixed-rule EA: sells USDJPY/EURJPY.r/GBPJPY.r into the Tokyo gotobi pre-fixing dollar-demand spike. No tunable parameters swept -- brief specified exact rules. Backtested both per-pair (3 independent single-symbol runs) and as a true combined-account portfolio (v1_portfolio/, one EA instance trading all 3 symbols against one shared account). In-sample (2017-2022): per-pair 18/18 pair-years profitable, PF 1.42-1.48/pair; combined-account PF 1.36, 898 trades, max drawdown 4.85-6.36%. Out-of-sample (2023-2025, used once): per-pair PF improved to 1.48-1.86 (2025 alone carries ~65-85% of each pair's OOS profit); combined-account PF improved to 1.72, 459 trades, max drawdown 6.80-8.05% -- both comfortably below the 15% kill-switch. A real bug (shared CTrade magic-number mismatch causing stuck positions) was found and fixed in v1_portfolio during this validation -- see ea-coder/lessons.md. Verdict: ready for live at reduced size (thin edge + unverified live execution quality is the one remaining open risk) -- see strategies/day_trading/gotobi/VERDICT.md. APPROVED_LIVE by user 2026-09-23, explicit instruction in-session to go straight to live capital (skipping demo), scope narrowed to VERDICT's reduced-size option: USDJPY only first (the pair with the longest/most consistent track record per VERDICT.md), EURJPY.r/GBPJPY.r held back until fills are confirmed. account YOUR_ACCOUNT_LOGIN / FPMarkets-Live -- real capital.",
     "history": [
       {
@@ -95,6 +95,11 @@
         "status": "coded",
         "date": "2026-09-23",
         "note": "[EA Coder 2026-09-23, v2]: DISPLAY-ONLY patch, per .claude/agents/ea-coder.md Chart status panel convention (added 2026-09-23, required before live_candidate/live_candidate_final). Copied v1/strategy.mq5 forward unmodified and added the on-chart Comment() status panel (identity/DEMO-LIVE line, Validated-symbols line from spec.json symbols, Risk/trade + DD-from-peak line, Status line incl. the WARNING-not-validated case, Safety losses line, Position line, Last-action line, and a gotobi-specific block showing todays gotobi-day eligibility + next entry window/countdown), wired via both OnTick() and a 1s OnTimer(), rendered before the INIT_FAILED return on the live-account guard, and cleared with Comment(\"\") in OnDeinit(). Added exactly one new input, InpValidatedSymbols (default \"USDJPY,EURJPY.r,GBPJPY.r\", from v1/spec.json symbols field). Compiled clean, 0 errors/0 warnings, first attempt (v2/compile.log). Zero entry/exit/sizing/timing/safety logic changed -- v1s full safety ledger (consecutiveLosses, dailyHaltActive, drawdownHaltActive, balancePeak, InpAllowLiveAccount) carried over unmodified; original OnTick() body moved verbatim into a new ProcessTick() helper (called from OnTick before RenderPanel()) purely so the panel always refreshes on every early return, no trading-logic reordering. current_version bumped to v2; top-level status deliberately LEFT AT approved_live (not reset to coded) per explicit task instruction -- this is a documented zero-logic-change display patch on an already-vetted, user-approved-for-live strategy, not a fresh unreviewed version, so v1s review.md/VERDICT.md findings and the existing live approval apply unchanged to v2. Compiled .ex5 available at MQL5/Experts/EAFactory/gotobi/v2/strategy.ex5 in the FP Markets terminal data folder for Live Manager if/when it re-attaches using this version instead of v1."
+      },
+      {
+        "status": "live",
+        "date": "2026-09-25",
+        "note": "[Live Manager 2026-09-25]: DEPLOYED LIVE, v2, attach confirmed. Chart: USDJPY.r (NOT bare USDJPY -- on account YOUR_ACCOUNT_LOGIN bare USDJPY reports SYMBOL_TRADE_MODE_DISABLED (Standard-account symbol, view-only on this Raw account); USDJPY.r (Forex Majors Raw) is FULL. Verified by a read-only SymbolInfoInteger probe on 2026-09-23, user chose USDJPY.r). Inputs: repo defaults except InpAllowLiveAccount=true and InpValidatedSymbols=\"USDJPY,USDJPY.r,EURJPY.r,GBPJPY.r\" (user-approved, so the panel doesn't show a false not-validated WARNING on the .r chart); InpRiskPercent=0.5. Single pair only -- EURJPY.r/GBPJPY.r held back per VERDICT.md staged rollout. Compiled via scripts/compile_ea.py -> MQL5/Experts/EAFactory/gotobi/v2/strategy.ex5 (0 errors). Terminal restarted 14:55 UTC, journal: expert loaded, account synced, trading enabled, no INIT_FAILED. Prior context: a locally-patched v1 (not in repo) ran live on USDJPY.r 2026-09-23..25 and took one trade on 2026-09-25 (sell 0.01 @158.731 00:45 UTC, closed 158.662 01:20 UTC, +6.9 pips) -- the first confirmed live fill; it was removed and replaced by repo v2 on user instruction."
       }
     ]
   },
@@ -332,7 +337,7 @@
   },
   "day_trading/month_end_fix_reversal": {
     "category": "day_trading",
-    "status": "approved_live",
+    "status": "live",
     "current_version": "v3",
     "created": "2026-09-23",
     "last_updated": "2026-09-25",
@@ -393,6 +398,11 @@
         "status": "approved_live",
         "date": "2026-09-25",
         "note": "User explicit reconfirmation of approved_live for v3 specifically (the chart-panel + safety-ledger-backfill version), same scope as the original approval: EURUSD.r + GBPUSD.r only, reduced size, USDJPY held back. This was needed because Researcher deliberately did not carry approved_live forward automatically after v3's safety ledger showed a real (though narrow, net-positive, non-approved-pair) effect on the backtest -- see v3/review.md. User confirmed after seeing that both approved pairs were byte-for-byte unchanged across all 8 years in-sample and out-of-sample."
+      },
+      {
+        "status": "live",
+        "date": "2026-09-25",
+        "note": "[Live Manager 2026-09-25]: DEPLOYED LIVE, v3, attach confirmed. Charts: EURUSD.r and GBPUSD.r (one instance each); USDJPY held back per approval scope. Inputs: repo defaults except InpAllowLiveAccount=true and RiskPercent=0.5 (the reduced size decided in live-manager/lessons.md). Compiled via scripts/compile_ea.py -> MQL5/Experts/EAFactory/month_end_fix_reversal/v3/strategy.ex5 (0 errors). Terminal restarted 14:55 UTC, journal: both experts loaded, account synced, trading enabled, no INIT_FAILED. A locally-patched v2 (not in repo, RiskPercent=1.0) had been attached 2026-09-23..25 but never traded (no month-end window occurred); removed and replaced by repo v3 on user instruction. First eligible window: 2026-09-28 ~15:00 UTC."
       }
     ]
   },

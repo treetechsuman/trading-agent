@@ -1,13 +1,13 @@
 
 
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5 : information: compiling C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5 : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Object.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Object.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\StdLibErr.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\OrderInfo.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\HistoryOrderInfo.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\PositionInfo.mqh
-C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\DealInfo.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5 : information: compiling C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Experts\EAFactory\gotobi\v2\strategy.mq5 : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Object.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Object.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\StdLibErr.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\OrderInfo.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\HistoryOrderInfo.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\PositionInfo.mqh
+C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\Trade.mqh : information: including C:\Users\Administrator\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E011\MQL5\Include\Trade\DealInfo.mqh
  : information: generating code
  : information: generating code 3%
  : information: generating code 6%
@@ -43,4 +43,4 @@ C:\Users\Suman\AppData\Roaming\MetaQuotes\Terminal\ED480984639B96B48C6EBB5DA707E
  : information: generating code 95%
  : information: generating code 100%
  : information: code generated
-Result: 0 errors, 0 warnings, 669 ms elapsed, cpu='X64 Regular'
+Result: 0 errors, 0 warnings, 1957 ms elapsed, cpu='X64 Regular'

@@ -193,3 +193,42 @@ to `live`) with history rows recording this exact state. No rows were
 added to `journal/live_trades.csv` (empty since nothing traded or was
 confirmed attached — adding a placeholder row would misrepresent it to
 Researcher as an actual event).
+
+## 2026-09-25 — first actual live attach (gotobi v2, month_end_fix_reversal v3)
+
+**Bare `USDJPY` is NOT tradeable on account `YOUR_ACCOUNT_LOGIN` — use `USDJPY.r`.**
+A read-only `SymbolInfoInteger(SYMBOL_TRADE_MODE)` probe (2026-09-23) returned
+`DISABLED` for `USDJPY` (path `Forex Majors\USDJPY`, spread ~17 pts) and
+`FULL` for `USDJPY.r` (path `Forex Majors Raw\USDJPY.r`, spread ~6 pts). This
+is a Raw account; the bare symbols are the Standard-account set, visible
+(quotes, history, Strategy Tester) but view-only for trading. The earlier
+instruction in this file to attach gotobi to a bare USDJPY chart would have
+produced an EA that silently could never place an order. Backtests on bare
+USDJPY remain valid evidence (wider spread than live `.r` = conservative,
+though they don't include the Raw commission), but **every live chart on
+this account must use a `.r` symbol.** Probe trade mode, not just symbol
+existence, before any attach.
+
+**Attach without the GUI works via the chart profile.** With the terminal
+closed (it rewrites the profile on exit), add an `<expert>` block before
+`<window>` in `MQL5\Profiles\Charts\Default\chartNN.chr` (UTF-16LE, CRLF):
+`name=strategy`, `path=Experts\EAFactory\<name>\<version>\strategy.ex5`,
+`expertmode=33` (this build's value for "algo trading allowed"), and an
+`<inputs>` block listing every input (`InpAllowLiveAccount=true` etc.),
+then start the terminal. The journal's `expert ... loaded successfully`
+with no `initialization failed` / `removed` line confirms the live guard
+passed. The terminal loads the `Default` profile regardless of
+`ProfileLast` in `config\common.ini`.
+
+**Deployed:** gotobi v2 on USDJPY.r (`InpRiskPercent=0.5`,
+`InpValidatedSymbols=USDJPY,USDJPY.r,EURJPY.r,GBPJPY.r`), month_end v3 on
+EURUSD.r + GBPUSD.r (`RiskPercent=0.5`). Both `InpAllowLiveAccount=true`,
+all other inputs at repo defaults. Registry advanced `approved_live → live`.
+
+**Known gaps in the deployed repo versions** (fixed in a local-only patch
+that ran 2026-09-23..25, not yet brought into the repo as new versions):
+month-granular DST switch (wrong for the days between 1 Mar and the US DST
+date, e.g. the 5 Mar gotobi day enters an hour late); `PositionSelect(_Symbol)`
+on a hedging account (month_end's 22:00 close can close ANY position on its
+symbol, including manual trades); safety ledger held only in memory, so a
+terminal restart clears a loss-streak pause / drawdown stop.
