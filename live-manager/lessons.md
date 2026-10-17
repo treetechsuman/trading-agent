@@ -232,3 +232,44 @@ date, e.g. the 5 Mar gotobi day enters an hour late); `PositionSelect(_Symbol)`
 on a hedging account (month_end's 22:00 close can close ANY position on its
 symbol, including manual trades); safety ledger held only in memory, so a
 terminal restart clears a loss-streak pause / drawdown stop.
+
+## 2026-10-17 (23:05 UTC) — month_end_fix_reversal v3 → v4 swap
+
+**Deployed:** v4 (DST-aware fix hour + magic-isolated closes, see
+`v4/spec.json`, `v4/v3_vs_v4.md`, `research/server_clock_check/README.md`)
+on EURUSD.r + GBPUSD.r, replacing v3. Same inputs as v3 plus
+`InpDstMismatchShift=true`, same magic 20260090. USDJPY still held back;
+gotobi v2 on USDJPY.r untouched. Done on a Saturday with the market closed
+and both v3 instances flat. Compiled 0 errors / 0 warnings via
+`scripts/compile_ea.py`; journal after restart: all 3 experts loaded, no
+INIT_FAILED, trading enabled.
+
+**Swap procedure that worked:** back up `MQL5\Profiles\Charts\Default`
+(→ `Default-backup-20261017-v3`), close the terminal gracefully
+(`CloseMainWindow()` + wait, never kill — it rewrites the profile on exit),
+then edit only the `path=` line and add the new input in each chart's
+`<expert>` block, preserving UTF-16LE + BOM + CRLF, then start the terminal.
+Diff each `.chr` against the backup afterwards; expect unrelated
+`<object>` (trade arrows) / scale diffs if the backup was taken while the
+terminal was still running.
+
+**PowerShell 5.1 gotcha:** `"text".Split("multi-char string")` splits on
+*any of the characters*, not the substring — don't use it to count
+occurrences. Use `[regex]::Matches($t,[regex]::Escape($s)).Count`.
+
+**A restart applies any pending LiveUpdate.** Build 6230 had been downloaded
+on 2026-09-26; the first restart after that installed it (terminal exits,
+updater runs, terminal relaunches itself, ~15 s). Harmless here, but plan
+swaps for a closed market partly for this reason.
+
+**Panel can't be checked headless.** With the RDP session disconnected
+there is no desktop to screenshot (`CopyFromScreen` → "handle is invalid"),
+and the terminal's built-in MCP server (127.0.0.1:22346) needs a bearer
+token. The fix-window schedule was verified offline with a port of
+`IsDstMismatchDay()` instead. The user should glance at both panels on next
+RDP login: title `month_end_fix_reversal v4`, `DST mismatch day: no`,
+17:55–18:02 now; `YES (fix +1h)`, 18:55–19:02 from Oct 25 to 31.
+
+**Reminder:** the spike history and safety ledger are in memory only, so
+every restart empties them. That's fine this time (8 weekday samples before
+Oct 29), but avoid restarts in the last ~5 weekdays before a month-end.
