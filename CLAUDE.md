@@ -164,6 +164,17 @@ this git remote (`github.com/treetechsuman/trading-agent`) — see
 - Registry statuses `live`/`demo` (set by the server's live-manager) are
   terminal from this machine's point of view — don't treat them as
   something to re-dispatch or redeploy locally.
+- **This dev machine is not actually free of live activity — check
+  `tasklist` for `terminal64.exe` before every launch, even a harmless
+  Tester-only one.** Discovered 2026-09-26: the user separately runs a
+  manual, non-repo live setup on this same machine's terminal (an EA
+  tagged `[SRBE]`, magic `26090902`, on `USDJPY.r` — not this project's
+  `gotobi`). MT5 only allows one `terminal64.exe` instance per data
+  folder, so launching one here while that's open doesn't start a second
+  process — it silently does nothing useful against the existing
+  instance (no error, no timeout, just no result), which looks
+  identical to a genuine hang. Always check first, and if one's running
+  that isn't yours, ask before touching it.
 
 ## Status lifecycle (`strategies/registry.json`)
 

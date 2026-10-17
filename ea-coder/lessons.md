@@ -580,3 +580,28 @@ portfolio harness, per spec.json/CLAUDE.md default.
   flagged the discrepancy explicitly in both the file header and the
   registry note so Researcher can decide whether 20 was a deliberate change
   or a transcription slip.
+
+## day_trading/month_end_fix_reversal/v4 (2026-10-18) -- DST mismatch-day fix hour + magic-isolated positions
+
+Compiled clean, 0 errors/0 warnings, first attempt. Bug-fix patch on v3.
+
+- **The FP Markets server clock follows US DST (NY close + 7), not EU DST.**
+  A "London 16:00 == 18:00 server year-round" assumption is wrong on the
+  EU/US mismatch days: [2nd Sun Mar, last Sun Mar) and [last Sun Oct,
+  1st Sun Nov). London 16:00 is 19:00 server on those days. Any London-anchored
+  time in a future spec needs the same per-date check. The reusable helpers
+  are `NthSundayDay`/`LastSundayDay`/`IsDstMismatchDay` in v4/strategy.mq5,
+  which work on the TimeCurrent() date only. Verified with a Python port
+  against an independent US-vs-EU DST calendar, 0 disagreements 2017-2027.
+- **Never use `PositionSelect(_Symbol)` in an EA that may share an account.**
+  On hedging accounts it picks an arbitrary position on the symbol. v3's
+  end-of-day close had no magic check at all, so it would close other EAs'
+  or manual positions. Pattern: loop `PositionsTotal()`/`PositionGetTicket(i)`,
+  match `POSITION_SYMBOL` AND `POSITION_MAGIC`, return the ticket, then
+  close with `trade.PositionClose(ticket)`. Default to this in every new EA.
+- Tooling gotcha (this agent's environment, not MQL5): backslashes in
+  heredocs/sed passed through the Bash tool were sometimes collapsed
+  (`\n` became a newline, `\v3\` patterns did not match). When patching
+  text that holds literal backslashes (MQL5 `"\n"` strings, config.ini
+  `Expert=` paths), build them in Python with `chr(92)` and assert the
+  match count, and diff afterwards.

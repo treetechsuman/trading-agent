@@ -127,3 +127,63 @@ bracketing 2024.03.08 and 2023.11.03 with `InpMinSpikeSizePipsFloor`
 dropped to 0.1 produced trades at exactly T+10 after the expected derived
 release time on both dates, matching dates.md's table with no off-by-one-
 hour error.
+
+## Using the Strategy Tester as a headless harness for non-trading tasks (2026-09-26) -- abandoned, don't retry as-is
+
+Tried to reuse the compile_ea.py/run_backtest.py pipeline to run a
+non-trading "EA" (`research/cointegration_check/v1/strategy.mq5`) whose
+only job was dumping historical daily closes for ~20 FX pairs via
+`CopyRates()` in `OnInit()`, so a real cointegration test could run against
+this broker's own data instead of relying on outside literature. The
+pattern itself (reusing the existing compile/launch scripts as a pure
+execution harness for a non-trading payload) is sound and worked fine for
+compiling -- **the failure was at runtime, twice, each a genuine multi-hour
+hang with zero log output, not a quick error:**
+
+- **First hang**: turned out to be a false alarm caused by something
+  external -- a separate, user-run live terminal instance (a non-repo
+  EA, magic `26090902`, tag `[SRBE]`, on `USDJPY.r`) was already running
+  on this same machine/data folder when the launch happened. MT5 only
+  allows one `terminal64.exe` per data folder, so the new launch likely
+  never actually started a fresh process at all -- it just sat waiting
+  against the pre-existing instance. No CSV was ever produced. Resolved
+  once the user closed their own terminal.
+- **Second hang, with that interference confirmed gone**: still hung for
+  7.5+ hours, single clean process, zero output -- not even the one log
+  line the EA prints per symbol on success OR failure. This means it got
+  stuck either before `OnInit()` ever ran, or inside the very *first*
+  `CopyRates()` call, for `EURUSD.r` -- the tester's own driving symbol,
+  which should be the one case guaranteed to have data already prepared.
+  Root cause not established (would need a much smaller isolated probe --
+  one symbol, a short date range, a tight timeout -- to even tell whether
+  `OnInit()` starts at all). Both attempts were killed via `taskkill`
+  rather than resolving on their own.
+
+**Standing lesson**: don't trust a large first attempt at this pattern
+(many symbols, an 8-year range) without first proving the mechanism works
+at all on a trivial case (one symbol, ~3 months, e.g. `--timeout 60`).
+**Before ANY `terminal64.exe` launch on this dev machine, check `tasklist`
+first** -- this account apparently also has a separate, manually-run live
+setup on this same machine outside the repo/registry, so a collision risk
+exists even for supposedly-harmless Tester-only launches, not just between
+two of our own backtests. `research/cointegration_check/v1/` (the EA
+source + the intended `test_cointegration.py` analysis script) is left in
+place, uncommitted, for whoever picks this up next -- the actual
+cointegration question itself was never answered; the literature-only
+finding in `strategies/_graveyard/liquidity_sweep_reversal/REASON.md`
+("FX majors correlated but not reliably cointegrated, even for
+AUDUSD/NZDUSD") remains the only evidence on file, not independently
+confirmed or refuted against this broker's own data.
+
+## Report file appears before terminal64.exe exits (2026-10-18)
+
+`run_backtest.py` returns as soon as `report.htm` shows up in the data folder.
+`terminal64.exe` (with `ShutdownTerminal=1`) can still be alive for a few
+seconds after that. A runner that checks `tasklist` before the next launch
+right away will see the previous run's own terminal and treat it as a
+foreign instance. This happened during month_end_fix_reversal v4: the L2 report
+arrived, the next tasklist check saw PID 3048, and the batch aborted. The
+process then exited by itself. Fix: after each leg, poll `tasklist` until
+terminal64.exe is gone (up to ~120s), and only then run the
+"is anything else running?" check for the next launch. A terminal that is
+still there after that wait is a real foreign or hung instance.

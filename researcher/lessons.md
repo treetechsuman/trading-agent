@@ -91,3 +91,95 @@ phases of ONE already-identified event-driven V-pattern.
 Registry: `day_trading/fix_run_momentum` set to `discarded`, current_version
 v1. See `strategies/day_trading/fix_run_momentum/v1/review.md` and
 `strategies/_graveyard/fix_run_momentum/REASON.md`.
+
+## Cointegration/pairs-trading -- attempted direct verification, inconclusive (2026-09-26)
+
+User asked (after being shown a third-party StatArb/pairs-trading EA
+concept) whether the standing literature-only finding -- "FX majors are
+correlated but not reliably cointegrated, even for the textbook-best
+AUDUSD/NZDUSD pair" (`strategies/_graveyard/liquidity_sweep_reversal/REASON.md`)
+-- was worth checking directly against this broker's own historical data
+rather than trusting outside literature alone. Agreed it was worth doing.
+Built a non-trading price-export utility
+(`research/cointegration_check/v1/`) to pull daily closes for ~20 candidate
+pairs and a `test_cointegration.py` script (Engle-Granger via statsmodels)
+to test them properly. **The data-export step never completed** -- two
+separate multi-hour hangs in the Strategy Tester harness (see
+`backtester/lessons.md`'s 2026-09-26 entry for the technical detail) --
+and the user asked to step back rather than keep debugging it.
+
+**Status: still an open question, not resolved either way.** The
+literature-only finding remains the only evidence on file. If revisited,
+don't repeat the same Tester-based CSV-export approach without first
+proving it on a trivial case (one symbol, a few months) -- see the
+backtester lessons entry for exactly where it hung. The EA source and
+analysis script are left in `research/cointegration_check/v1/` for
+whoever picks this up.
+
+## day_trading/fix_w_drift v1 — spec created, not yet coded (2026-10-17)
+
+**What's being tried**: a pure replication of Krohn, Mueller & Whelan
+(JF 2024) Table IX, European legs, on EURUSD.r/GBPUSD.r M1. Leg A SELLs
+09:00 → 15:15 server (02:00 → 08:15 ET, into the ECB fix). Leg B BUYs
+18:00 → 23:45 server (11:00 → 16:45 ET, after the London fix). Fixed
+clock times, no signal filter, nothing swept. Catastrophe-only SL
+(max(30p, 1.5x D1 ATR20)), no TP, 0.5% risk at the SL. Dates
+user-confirmed: IS 2015-2019 (inside the paper's sample), OOS 2020-2025
+(post-publication). See `strategies/day_trading/fix_w_drift/v1/spec.json`
+and `dates.md`.
+
+**Things found while writing the spec, worth remembering:**
+
+1. **The repo disagrees with itself about the server clock.** Older docs
+   (`wm_fix_reversal/dates.md`, `fix_run_momentum/dates.md`,
+   `nfp_fade/dates.md`) assume EET/EEST with **EU** DST dates. The basis
+   for this strategy, and `live-manager/lessons.md`'s note on gotobi's
+   March switch, say the clock is **NY close + 7, following US** DST.
+   The two only differ in the EU/US mismatch weeks (about 3-4 weeks a
+   year), which is exactly why nobody noticed. nfp_fade's "DST
+   spot-check PASSED" doesn't settle it, because it read the EA's own
+   entry timestamps and those just echo the EA's computed time.
+   **Lesson: a timing check has to come from price or tick evidence
+   (when the week's first tick arrives, where the fix volume spike sits),
+   never from the EA's own fills.** fix_w_drift's spec makes that check
+   a gate before any in-sample result is reviewed.
+2. **If NY+7 is right, the live month_end_fix_reversal is mistimed on a
+   few days a year.** Its measurement window is a flat 17:55-18:02
+   server. In the autumn mismatch week, 18:00 server is 15:00 London, an
+   hour before the fix, and that week overlaps the October month-end
+   window every year (e.g. Oct 29-31 2023). Some years the same is true
+   of late March (e.g. Mar 29 2019 and 2024). The research README's line
+   that month_end "already handles the London side" is wrong under NY+7.
+   This needs its own follow-up, separate from fix_w_drift. Not acted on
+   here: it's a live strategy and not in this task's scope.
+3. **month_end v3 handles positions at symbol level**
+   (`PositionSelect(_Symbol)` for its exit check and its 22:00 EOD
+   close). On this hedging account that can see another EA's position on
+   the same symbol. That drove the decision to have Leg B skip
+   month_end's exact last-3-calendar-days window, and to require
+   ticket+magic position handling in fix_w_drift.
+4. **The standard InpMaxConsecutiveLosses=6 doesn't fit a high-frequency,
+   coin-flip-per-trade strategy.** At about a 50% win rate and about 500
+   trades a year it would fire about 4 times a year and pause until the
+   next month, suppressing perhaps 20-30% of trades by chance. Set to 12
+   here. **Calibrate the ledger thresholds to each strategy's trade
+   frequency and win rate rather than copying the defaults.**
+5. **Clearing the 200-trade bar is not the same as having statistical
+   power.** At the paper's own per-leg Sharpe, a fully intact effect gives
+   an expected gross t of only about 1.9-2.7 per leg/pair over this
+   in-sample window, and about half that net. The review has to use a
+   mean-pips t-stat and the direction across all 4 leg/pair cells, not PF
+   on one cell.
+6. **Tick-history depth again**: clean EURUSD.r/GBPUSD.r ticks probably
+   start around 2017.07.31, so the user-confirmed 2015 start may be
+   unusable. I flagged it for a probe plus user re-confirmation rather
+   than changing the confirmed dates. **When a user proposes dates, check
+   them against known data limits before writing them in.**
+
+Also noticed: this `lessons.md` starts mid-sentence (line 1 is
+"characteristics — ..."), so the earlier entries look truncated in the
+working copy. `git status` showed this file as modified. Worth checking
+against git HEAD before anything else overwrites it. Left as found and
+appended only.
+
+Registry: `day_trading/fix_w_drift` added, status `new`, v1.

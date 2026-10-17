@@ -1,0 +1,159 @@
+{
+  "id": "day_trading/fix_w_drift",
+  "version": "v1",
+  "category": "day_trading",
+  "created": "2026-10-17",
+  "origin": "Researcher, 2026-10-17, from desk research in research/fx_fix_w_pattern/README.md. v1 is a PURE REPLICATION of the two European-session legs of Krohn, Mueller & Whelan's Table IX. Fixed clock entry, fixed clock exit, no signal filter, nothing swept. The only additions are operational: spread filter, catastrophe stop, holiday skips, month-end skip on Leg B, and the standard safety ledger and chart panel.",
+  "thesis": {
+    "source": "Krohn, Mueller & Whelan, 'Foreign Exchange Fixings and Returns around the Clock', Journal of Finance 79(1), 2024, 541-578, doi:10.1111/jofi.13306. G9 currencies, 5-minute data, 1999-2019.",
+    "mechanism": "There is unconditional dollar demand at the big FX fixes. Dealers who absorb it carry inventory risk and price it in, so the USD tends to appreciate INTO each fix and depreciate AFTERWARDS. The paper reports t-stats of 4.5-11.7. This is a specific, named institutional flow at a fixed clock time, the same family as this project's two survivors (gotobi, month_end_fix_reversal). Ranaldo (SNB WP 2007-03) and Breedon & Ranaldo (SNB WP 2011-04) document the same phenomenon: currencies depreciate during their own local trading hours.",
+    "legs_replicated": "Table IX, ET clock. Pre-ECB 02:00->08:15 ET long USD (EUR gross 8.88%/yr SR 1.37; GBP 5.79%/yr SR 0.81). Post-London-fix 11:00->17:00 ET short USD (EUR gross 6.88%/yr SR 1.23; GBP 6.66%/yr SR 1.34). The Tokyo-fix legs are left out on purpose: the paper's Fig. 7 shows them flat or negative for EUR/GBP since about 2013.",
+    "relation_to_project_lessons": "researcher/lessons.md says that in a run-then-revert pattern the reversion half is the higher-prior one (fix_run_momentum failed and wm_fix_reversal was thinly positive). This strategy trades BOTH halves of the 'W', but over multi-hour windows. Those are statistically different from the 1-3 minute windows that lesson came from. Leg B (post-London, the reversion half) is therefore the leg that lesson predicts is stronger, and Leg A (pre-ECB, the run half) is the leg it puts at risk. That gives a pre-registered prior to check against: if Leg A works and Leg B does not, it contradicts the lesson and should be written up as such.",
+    "expected_edge_and_power": "Gross edge is about 3-4 bps per leg per day, roughly 3-4 EURUSD pips. Round-trip cost on this Raw account is about 0.8 pip (about $2.8/lot/side commission plus about 0.2 pip spread), so about 75% of the gross would survive if the pattern is intact. Per-trade noise is tens of pips, so win rate should sit near 50%. IMPORTANT for review: the paper's per-leg gross Sharpe of about 1.2 annualised is about 0.076 per trade. Over N trades that gives an expected gross t-stat of about 0.076*sqrt(N): about 2.7 at N=1250 (5 clean years), about 1.9 at N=600 (2017.08-2019 only). Net of costs it would be roughly half that. Even a fully intact effect can therefore look statistically marginal on one leg and one pair. Clearing the 200-trade bar is necessary here but nowhere near sufficient. The review must use the mean-pips-per-trade t-stat (see evaluation_plan), not PF alone."
+  },
+  "symbols": ["EURUSD.r", "GBPUSD.r"],
+  "symbol_notes": "One EA, attached as one independent copy per pair's chart (single-symbol pattern, NOT the portfolio harness). These are the paper's two positive European-leg currencies. JPY is excluded because the yen appreciates during its own local hours and loses on these legs (paper, and research README).",
+  "timeframe": "M1",
+  "timeframe_rationale": "Entries and exits are minute-precise clock events. M1 plus Model=4 (real ticks) gives the correct fill at the scheduled minute. No indicator in this spec runs on M1. The only indicator is D1 ATR, used for stop sizing.",
+  "server_clock": {
+    "assumption": "Server time = US Eastern (New York) local time + 7 hours, all year, following US DST. Server 00:00 = 17:00 ET = NY rollover, every day. Equivalent: server = UTC+2 while the US is on EST, UTC+3 while the US is on EDT.",
+    "caution": "This CONTRADICTS the assumption written into wm_fix_reversal/dates.md, fix_run_momentum/dates.md and nfp_fade/dates.md (server = EET/EEST with EU DST dates). The two agree outside the mismatch weeks, and the mismatch weeks are exactly what this spec handles differently. It is supported by live-manager/lessons.md (gotobi's month-granular switch 'wrong for the days between 1 Mar and the US DST date') and by the basis given for this strategy, but it has NOT been checked against price data in this repo. See dst_handling.verification. It must pass before any result is reviewed.",
+    "never_use": "TimeGMT() / TimeLocal(). They return the host clock in the Strategy Tester, not simulated time (ea-coder.md gotcha; gotobi, nfp_fade and month_end_fix_reversal all avoid them). Compute everything from TimeCurrent() plus calendar rules."
+  },
+  "dst_handling": {
+    "problem": "The ECB fix (14:15 CET/CEST) and the London WM/R fix (16:00 GMT/BST) follow EU DST. The server clock follows US DST. US DST (2nd Sunday of March -> 1st Sunday of November) always strictly contains EU DST (last Sunday of March -> last Sunday of October). So in every mismatch period the US is on EDT while Europe is still on standard time, the Europe-NY gap is one hour shorter than usual, and both European fixes land ONE HOUR LATER on the server clock. The NY 17:00 rollover does not move (always 00:00 server).",
+    "fix_times_on_server_clock": {
+      "normal_days": "ECB fix 15:15 server (= 08:15 ET). London fix 18:00 server (= 11:00 ET).",
+      "mismatch_days": "ECB fix 16:15 server (= 09:15 EDT = 13:15 UTC = 14:15 CET). London fix 19:00 server (= 12:00 EDT = 16:00 UTC = 16:00 GMT)."
+    },
+    "mismatch_rule": "For server date d in year y (Mon-Fri trading days only): is_mismatch = (d >= NthSunday(y, March, 2) && d < LastSunday(y, March)) || (d >= LastSunday(y, October) && d < NthSunday(y, November, 1)). Compare date-only, at midnight. That is safe because every DST transition falls on a Sunday and this EA never trades on a server Sunday. Implement NthSundayDay(year, mon, n) and LastSundayDay(year, mon) as generic helpers. nfp_fade/v1 already has the same pattern, validated in ea-coder/lessons.md; reuse the approach. Cross-check table for 2015-2025: strategies/day_trading/fix_w_drift/dates.md.",
+    "decision_anchor_legs_to_the_fix": "On mismatch days BOTH European anchors shift +1h on the server clock. Leg A becomes 10:00 -> 16:15 (the whole window moves, so it still ends exactly at the ECB fix and still starts at 08:00 CET). Leg B entry becomes 19:00. Leg B exit stays at 23:45, because it is anchored to the NY rollover and that does not move. Justification: the thesis is defined relative to the fixes (USD up INTO the ECB fix, down AFTER the London fix). On mismatch days the fixed-ET reading would exit Leg A an hour before the ECB fix, and would enter Leg B at 18:00 server, one hour BEFORE the London fix. That puts Leg B in the pre-fix USD-appreciation phase, the opposite of what it is meant to trade. Cost to replication purity: about 3-4 trading weeks per year (about 6-8% of days) differ from a literal fixed-ET reading. It is unclear whether the paper's Table IX windows were re-anchored for mismatch weeks; this is flagged as an open question, not resolved.",
+    "input": "input bool InpShiftForDstMismatch = true; // true = fix-anchored (locked v1 config). false = literal fixed-ET server times on all days. false exists only as a diagnostic and must NOT be chosen on in-sample results.",
+    "verification": {
+      "owner": "Backtester, before the full in-sample run",
+      "check_1_week_open": "EA logs the first tick of each trading week (see diagnostic_logging). Under NY+7 the first tick of a mismatch week (e.g. week of Mon 2019.03.11, Mon 2023.10.30) arrives MONDAY ~00:00-00:10 server, the same as every other week. Under an EU-DST EET/EEST clock it would arrive SUNDAY ~23:00 server during mismatch weeks. Expected result: Monday ~00:00 in all weeks.",
+      "check_2_london_fix_volume": "On 3-5 mismatch-week days (e.g. 2019.03.12-14, 2023.10.31-11.02), inspect M1 tick volume and range around 17:55-18:05 and 18:55-19:05 server. Under NY+7 the WM/R fix volume spike sits at 19:00 server on those days (it sits at 18:00 on normal days). Under EU-DST it sits at 18:00 on all days.",
+      "on_failure": "If either check shows the EU-DST pattern, STOP. Do not run the in-sample backtest. Return to Researcher: under an EU-DST clock both fixes are constant on the server clock and the mismatch shift must be dropped (or reversed for the rollover-anchored Leg B exit). That is a v1 spec change, not something EA Coder or Backtester should patch.",
+      "why_not_the_nfp_fade_spot_check": "nfp_fade's 'DST spot-check PASSED' read the EA's own entry timestamps, which only echo the time the EA computed. It cannot tell you whether the server clock really behaves that way. Only price/tick evidence (checks 1-2) can."
+    }
+  },
+  "legs": {
+    "leg_A_pre_ECB": {
+      "enable_input": "input bool InpEnableLegA = true;",
+      "side": "SELL (long USD)",
+      "entry_time_server": "09:00:00 on normal days; 10:00:00 on mismatch days (InpShiftForDstMismatch=true). Inputs: InpLegAEntryHour=9, InpLegAEntryMinute=0 (normal-day values; add +1h on mismatch days).",
+      "exit_time_server": "15:15:00 on normal days; 16:15:00 on mismatch days. Inputs: InpLegAExitHour=15, InpLegAExitMinute=15 (normal-day values; +1h on mismatch days).",
+      "et_equivalent": "02:00 -> 08:15 ET (paper Table IX). On mismatch days: 03:00 -> 09:15 EDT, i.e. still 08:00 CET -> 14:15 CET.",
+      "magic": 20260140,
+      "order_comment": "fwd_A"
+    },
+    "leg_B_post_London": {
+      "enable_input": "input bool InpEnableLegB = true;",
+      "side": "BUY (short USD)",
+      "entry_time_server": "18:00:00 on normal days; 19:00:00 on mismatch days. Inputs: InpLegBEntryHour=18, InpLegBEntryMinute=0 (normal-day values; +1h on mismatch days).",
+      "exit_time_server": "23:45:00 every day, NOT shifted on mismatch days. Input: InpLegBExitHour=23, InpLegBExitMinute=45.",
+      "et_equivalent": "11:00 -> 16:45 ET. The paper's window runs to 17:00 ET; it is closed 15 minutes early because 17:00 ET is the NY rollover, when spreads blow out and swap is charged. On mismatch days the entry is 12:00 EDT (= the 16:00 London fix), so the window is one hour shorter.",
+      "month_end_skip": "Skipped when the server date's day-of-month > DaysInMonth - InpLegBSkipMonthEndDays (default 3, 0 disables). This is the exact same calendar formula as month_end_fix_reversal v3 (strategy.mq5 line 233: isMonthEndWindow = s.day > lastDay - TradeLastNDaysOfMonth). See month_end_overlap_decision.",
+      "magic": 20260141,
+      "order_comment": "fwd_B"
+    },
+    "independence": "The two legs never overlap in time on one symbol (Leg A done by 16:15, Leg B starts no earlier than 18:00). Each leg is evaluated and traded on its own. At most one position per leg per symbol per day. If a leg's entry time arrives while ANY position with either of this EA's magics is still open on this symbol (only possible if an earlier exit failed), skip that entry and log it.",
+    "test_matrix": "Per pair, in-sample: (1) Leg A only (InpEnableLegB=false), (2) Leg B only (InpEnableLegA=false), (3) both. Runs 1 and 2 are the replication evidence per leg. Run 3 is the deployable configuration and the one whose drawdown and safety-ledger behaviour counts. Out-of-sample: the same three runs per pair, once, with whatever is locked after the in-sample review."
+  },
+  "entry_mechanics": {
+    "order_type": "Market order at the first tick at or after the scheduled entry time. trade.SetExpertMagicNumber(<leg magic>) immediately before every open. Deviation 10 points.",
+    "entry_retry_window": "input int InpEntryRetryMinutes = 5; If the spread check fails on a tick, keep checking each tick until entry_time + 5 minutes. If no tick passes inside that window, skip the leg for today and log 'skip <leg>: spread above max for full retry window'. Rationale: Leg B enters during the WM/R 5-minute fix calculation window, where raw spreads can widen briefly. A single-tick check would skip whole days for a transient reason. The 5-minute cap keeps the entry close to the paper's 5-minute-bar resolution.",
+    "max_spread_filter": "input double InpMaxSpreadPips = 1.0; spread = (ask - bid) / pip, with pip = 10 * _Point on 5/3-digit symbols. Typical EURUSD.r/GBPUSD.r raw spread is about 0.1-0.5 pip, so 1.0 only blocks genuinely abnormal ticks. 1.0 pip is also about a third of the expected gross edge, so anything wider would eat most of it.",
+    "weekdays": "Monday-Friday server days only.",
+    "holiday_skips": {
+      "both_legs": "Skip both legs on server dates Dec 24, Dec 25, Dec 26, Dec 31, Jan 1. Thin or early-closing sessions: a position could fail to exit before the market shuts, and the WM/R/ECB fixes are absent or unrepresentative on most of these days.",
+      "leg_A_only_TARGET_closing_days": "Also skip Leg A on Good Friday, Easter Monday and May 1. These are TARGET2 closing days, so the ECB publishes no reference rate and Leg A's anchor event does not happen. Easter Sunday dates (hardcode, do not compute): 2015-04-05, 2016-03-27, 2017-04-16, 2018-04-01, 2019-04-21, 2020-04-12, 2021-04-04, 2022-04-17, 2023-04-09, 2024-03-31, 2025-04-20, 2026-04-05, 2027-03-28. Good Friday = Easter - 2 days, Easter Monday = Easter + 1 day. For a year outside the table, do not skip; Print a one-time warning and show it on the panel.",
+      "not_a_signal_filter": "These skip days on which the anchor event does not occur or the session is structurally broken. They do not select on price behaviour, so v1 is still a no-signal-filter replication."
+    }
+  },
+  "stop_loss": {
+    "type": "Catastrophe-only, attached to the order at entry. It is never trailed or moved.",
+    "distance": "SL_pips = max(InpSLMinPips, InpSLAtrMultiple * ATR_D1_pips). ATR_D1 = iATR(_Symbol, PERIOD_D1, InpAtrPeriod) read from the LAST COMPLETED daily bar (CopyBuffer shift 1). Create the handle in OnInit and release it in OnDeinit.",
+    "inputs": "input int InpAtrPeriod = 20; input double InpSLAtrMultiple = 1.5; input double InpSLMinPips = 30.0;",
+    "rationale": "The edge is a few pips of drift over 6 hours against tens of pips of noise. A normal-sized stop would turn a time-exit replication into a stop-out strategy and destroy the very thing being measured. The stop exists only to bound tail events (e.g. SNB Jan 2015, flash moves). A typical 6-hour window range is about 0.5-0.7x daily ATR, so 1.5x daily ATR is about the README's suggested '3x rolling 20-day window range', using one standard, tester-reliable indicator instead of custom window-range bookkeeping. EURUSD daily ATR(20) has been roughly 50-100 pips in 2015-2025, so the typical SL is about 75-150 pips. The 30-pip floor only matters in extreme low-volatility regimes. Expected SL hit rate: well under 5% of trades. Backtester should report the actual share of SL exits; if it is above about 5%, the stop is shaping results and Researcher needs to know.",
+    "warmup": "If the ATR buffer is unavailable (fewer than InpAtrPeriod+1 completed D1 bars), skip the leg and log 'skip <leg>: ATR warmup'. Tester history before the start date normally covers this."
+  },
+  "take_profit": "None. Do not set a TP on the order.",
+  "exit": {
+    "primary": "Time exit at each leg's scheduled exit time (first tick at or after it): close that leg's position by TICKET.",
+    "hard_flat_backstop": "At or after 23:50:00 server, close ANY open position on _Symbol carrying either of this EA's magics. This EA never holds through the 00:00 server (17:00 ET) rollover.",
+    "stale_position_cleanup": "On OnInit and on each new server day: if a position with either magic exists outside its leg's active window (e.g. after a terminal restart), close it and log 'stale position closed'.",
+    "close_failure": "If a close fails (requote, off quotes), retry on every subsequent tick until it succeeds. Log each failure once."
+  },
+  "position_handling": {
+    "rule": "Identify this EA's positions ONLY by iterating PositionsTotal() -> PositionGetTicket(i) -> match POSITION_SYMBOL == _Symbol AND POSITION_MAGIC in {InpMagicLegA, InpMagicLegB}. Close with trade.PositionClose(ticket). NEVER use PositionSelect(_Symbol) or trade.PositionClose(_Symbol).",
+    "why": "The account is a hedging account, and month_end_fix_reversal v3 is LIVE on the same two symbols. live-manager/lessons.md already flags symbol-level PositionSelect/PositionClose as a real cross-EA hazard on this account. This EA must not be the one that reaches into another strategy's position."
+  },
+  "magic_numbers": {
+    "leg_A": 20260140,
+    "leg_B": 20260141,
+    "inputs": "input long InpMagicLegA = 20260140; input long InpMagicLegB = 20260141;",
+    "uniqueness_check": "On 2026-10-17 a grep of every .mq5 in the repo found 20260011, 20260030 (+i), 20260041, 20260042 (+i), 20260050, 20260090, 20260091 (+i), 20260092, 20260130, and the user's separate manual [SRBE] EA uses 26090902. Nothing in 2026014x-2026029x is used. Separate magics per leg let anyone looking at the live account's trade history tell the legs apart, and stop the safety ledger or any other EA from confusing them. The comments fwd_A/fwd_B are a second label."
+  },
+  "position_sizing": {
+    "method": "Fixed fractional on the catastrophe stop: lots = (ACCOUNT_BALANCE * InpRiskPercent / 100) / (SL_pips * pip_value_per_lot), with pip value from SYMBOL_TRADE_TICK_VALUE / SYMBOL_TRADE_TICK_SIZE. Round DOWN to SYMBOL_VOLUME_STEP. Skip the trade (log the reason) if the result is below SYMBOL_VOLUME_MIN. Cap at SYMBOL_VOLUME_MAX. Same CalculateLotSize pattern as gotobi/v1.",
+    "inputs": "input double InpRiskPercent = 0.5;",
+    "rationale": "0.5% is lost only if the catastrophe stop is hit. A typical time-exit trade moves about 20-30 pips against a stop of about 100 pips, so it changes balance by roughly 0.1-0.15%. Rough estimate: per-trade sd of about 0.125% of balance over about 500 trades per year per pair (both legs) gives an annual sd of about 2.8%. That puts expected drawdowns comfortably inside the 15% kill switch, even with EUR and GBP correlated. 0.5% is also the size the two live strategies run at, so live sizing would need no change. Note that EUR and GBP legs fire at the same minute in the same USD direction, so a combined EUR+GBP account is close to one USD bet at double size (cf. wm_fix_reversal v2_portfolio's correlated-loss finding). A portfolio-level check belongs to a later stage, not v1."
+  },
+  "safety_ledger": {
+    "pattern": "Copy the reference implementation in strategies/day_trading/gotobi/v1/strategy.mq5 line for line (per ea-coder.md): consecutiveLosses + InpMaxConsecutiveLosses + monthlyHaltActive/haltSetYear/haltSetMonth/CheckMonthlyHaltResume (pause until the 1st of the next calendar month); dailyStartBalance + dailyHaltActive + InpDailyLossStopPercent; balancePeak + drawdownHaltActive + InpMaxDrawdownStopPercent (no auto-resume); InpResetLedgerNow, InpResetDrawdownStop; InpAllowLiveAccount live-account guard (refuses ACCOUNT_TRADE_MODE_REAL unless true). OnTradeTransaction counts closing deals (DEAL_ENTRY_OUT) on _Symbol whose DEAL_MAGIC is EITHER leg magic. Both legs share one ledger per EA instance.",
+    "values": {
+      "InpMaxConsecutiveLosses": 12,
+      "InpDailyLossStopPercent": 5.0,
+      "InpMaxDrawdownStopPercent": 15.0,
+      "InpAllowLiveAccount": false
+    },
+    "deliberate_deviation_consecutive_losses_12_not_6": "The project-standard 6 is calibrated for low-frequency strategies (gotobi, month_end). This strategy trades about 2 times per day per pair at about a 50% win rate. The expected number of 6-loss runs in N trades is about N * 0.5^7, so about 4 per year at 500 trades per year. Each would trigger a pause until next month, suppressing perhaps 20-30% of all trades on a mechanical coincidence. That would wreck the replication and make the backtest depend on the halt rather than on the thesis. At 12 the expected count is about N * 0.5^13, about 0.06 per year, so it fires only if something is genuinely broken. Backtester must report every halt event (date, which halt, trades suppressed) so the reviewer can see whether any fired.",
+    "gate_placement": "if(monthlyHaltActive || dailyHaltActive || drawdownHaltActive) skip the entry and log 'skip <leg>: safety halt active'. Check this immediately before the spread and sizing checks, for both legs. Halts never block scheduled EXITS or the hard-flat backstop."
+  },
+  "month_end_overlap_decision": {
+    "decision": "Leg B SKIPS the month_end_fix_reversal window (last 3 calendar days of the month, identical formula). Default InpLegBSkipMonthEndDays = 3, locked for v1. Leg A is unaffected: its window ends by 16:15 server and never overlaps month_end's 17:55-22:00 activity.",
+    "reasons": [
+      "Deployability: the configuration that gets tested must be the one that could actually run on this account. month_end_fix_reversal v3 is live on EURUSD.r and GBPUSD.r on the same account. Testing with month-end days included and later deploying with them excluded would mean deploying an untested configuration.",
+      "Live interaction hazard in month_end v3's own code: its scheduled-exit check is 'if(PositionSelect(_Symbol) && PositionGetInteger(POSITION_MAGIC) == MagicNumber)'. On a hedging account PositionSelect(_Symbol) returns ONE position on the symbol. If that is fix_w_drift's earlier-opened Leg B position (opened 18:00, before month_end's ~18:02 entry), the magic check fails and month_end's 30-minute timed exit would not fire. Its trade would then run to SL/TP or its 22:00 EOD close, silently changing how a live, validated strategy behaves. The skip removes the overlap on exactly the days month_end can trade.",
+      "No double exposure on the same flow: on month-end days, month_end fades the fix spike in either direction while Leg B is always long EURUSD/GBPUSD. That gives either doubled USD exposure or a costly self-hedge on the same event.",
+      "Cost to replication: month-end fix days are among the heaviest-flow fix days, so this could remove more than its share (about 10-14%) of Leg B's edge, or of its losses. To quantify it, ONE pre-declared diagnostic is allowed: Leg B only, in-sample only, InpLegBSkipMonthEndDays=0. It is reported alongside the locked run and does NOT change the locked v1 configuration whatever it shows."
+    ],
+    "not_solved_by_this_skip": "month_end v3 also runs 'if(HourOf(now) >= EndOfDayHour && PositionSelect(_Symbol)) trade.PositionClose(_Symbol);' EVERY day from 22:00 server. PositionSelect(_Symbol) would see fix_w_drift's open Leg B position on any normal day. CTrade::PositionClose(symbol) on a hedging account should only close a position matching month_end's own magic (so likely no position of ours gets closed), but month_end would then retry that close on every tick from 22:00 to 23:45. That is NOT verified in this repo. It is a co-deployment question for Live Manager and for a future month_end version that uses ticket-plus-magic handling, not a v1 backtest concern, because the Strategy Tester runs each EA alone. Flagged in the registry note."
+  },
+  "diagnostic_logging": {
+    "week_open": "On the first tick after a gap > 24 hours, Print(\"FWD_CLOCK week_open first_tick=\", TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS), \" dow=\", <day_of_week>, \" mismatch=\", is_mismatch). Display/log only; it feeds dst_handling.verification.check_1.",
+    "per_entry_and_exit": "Print leg, side, server time, mismatch flag, scheduled entry/exit times, spread at fill, ATR_D1 pips, SL pips and lots on every entry. Print leg, reason (time exit / SL / hard-flat / stale) and pips on every exit.",
+    "per_skip": "Print every skipped leg-day with its reason (disabled, weekend/holiday, TARGET day, month-end skip, safety halt, spread, ATR warmup, lot below min, position already open)."
+  },
+  "chart_panel": {
+    "required": "Yes, from v1 (explicit request). Follow ea-coder.md's 'Chart status panel' convention exactly: Comment()-based, refreshed from OnTick() and a 1-second OnTimer(), rendered before the INIT_FAILED return of the live-account guard, cleared with Comment(\"\") in OnDeinit(). Maintain g_status and g_lastAction.",
+    "InpValidatedSymbols_default": "\"EURUSD.r,GBPUSD.r\" (the symbols this spec tests; nothing validated yet).",
+    "ea_specific_block": [
+      "Today (server): <YYYY.MM.DD ddd> | DST mismatch: YES/no | Shift: ON/off",
+      "Leg A (SELL) <ENABLED/disabled>: <HH:MM>-><HH:MM> | <WAITING | OPEN | DONE | SKIPPED: reason> | countdown to next event",
+      "Leg B (BUY)  <ENABLED/disabled>: <HH:MM>->23:45 | <WAITING | OPEN | DONE | SKIPPED: reason incl. 'month-end window (day X > lastDay-3)'> | countdown",
+      "Stop today: ATR(20,D1) <x>p x <mult> = <SL>p (floor <min>p) | Spread now <s>p (max <max>p)",
+      "Holiday table: OK through <last Easter year> (or WARNING outside table)"
+    ]
+  },
+  "inputs_summary": "All of these must be file-scope `input`s with literal defaults (run_backtest.py extracts them): InpEnableLegA=true, InpEnableLegB=true, InpShiftForDstMismatch=true, InpLegAEntryHour=9, InpLegAEntryMinute=0, InpLegAExitHour=15, InpLegAExitMinute=15, InpLegBEntryHour=18, InpLegBEntryMinute=0, InpLegBExitHour=23, InpLegBExitMinute=45, InpHardFlatHour=23, InpHardFlatMinute=50, InpLegBSkipMonthEndDays=3, InpEntryRetryMinutes=5, InpMaxSpreadPips=1.0, InpAtrPeriod=20, InpSLAtrMultiple=1.5, InpSLMinPips=30.0, InpRiskPercent=0.5, InpMagicLegA=20260140, InpMagicLegB=20260141, InpMaxConsecutiveLosses=12, InpDailyLossStopPercent=5.0, InpMaxDrawdownStopPercent=15.0, InpResetLedgerNow=false, InpResetDrawdownStop=false, InpAllowLiveAccount=false, InpValidatedSymbols=\"EURUSD.r,GBPUSD.r\".",
+  "tunable_parameters_to_sweep": "NONE in v1. Every value above is pre-specified and locked. This follows the methodological lesson from month_end_fix_reversal and yen_fiscal_repatriation (first-configuration-only evidence is cleaner). Any later refinement must be causally motivated by the in-sample review, never by out-of-sample results.",
+  "backtest_setup": {
+    "dates": "See strategies/day_trading/fix_w_drift/dates.md. In-sample 2015.01.01-2019.12.31, out-of-sample 2020.01.01-2025.12.31, both user-confirmed 2026-10-17. Tick-history-depth probe REQUIRED first; clean EURUSD.r/GBPUSD.r ticks may start only around 2017.07.31.",
+    "order_of_operations": "(1) tick-depth probe; (2) dst_handling.verification checks 1-2; (3) the 6 in-sample runs (2 pairs x Leg A / Leg B / both); (4) the one optional Leg-B month-end diagnostic; (5) Researcher review. Out-of-sample only after that review locks the configuration.",
+    "tester": "M1, Model=4 (every tick based on real ticks), Login=YOUR_ACCOUNT_LOGIN, deposit 10000 USD, one independent single-symbol run per pair, results in per-pair subfolders (v1/ root = EURUSD.r, v1/GBPUSD/), with Leg-only runs in clearly named subfolders (e.g. v1/legA/, v1/legB/, v1/GBPUSD/legA/ ...).",
+    "journal_leg_split": "journal.csv / journal/trades.csv carry no magic or comment column. For the 'both' runs, split legs by open_time hour: 09 or 10 = Leg A, 18 or 19 = Leg B."
+  },
+  "evaluation_plan": {
+    "primary_replication_metric": "Per leg, per pair: mean price P&L per trade in pips (side-adjusted exit - entry, so spread is included, commission excluded), its standard deviation, n, and t = mean / (sd / sqrt(n)). Report it both gross-of-commission and net (commission converted to pips). The paper's prediction is mean > 0 for both legs on both pairs. Direction plus magnitude compared with the paper's ~3-4 pip gross is the replication test.",
+    "also_report": "PF, win rate, net profit, max balance and equity drawdown, expectancy per trade ($ and pips), max consecutive losses, recovery factor, Sharpe; per-calendar-year breakdown of each; share of exits by type (time / SL / hard-flat); every safety-halt event; mismatch-day trades vs normal-day trades (count and mean pips) as a sanity check that the shift is not doing something odd; month-end-skipped days in the diagnostic run.",
+    "cross_checks": "Reconcile summary.csv against the raw per-trade ledger (avg win x wins + avg loss x losses should be roughly net; balance_after should end at deposit + net), per the fix_run_momentum lesson.",
+    "pre_registered_reading": "Consistent with the paper: both legs positive in mean pips on both pairs, with most in-sample years positive. Given the low power described in thesis.expected_edge_and_power, a single leg/pair with t of about 1 and the right sign is consistent with an intact but thin edge, not proof of one. Inconsistent: wrong-sign means on most leg/pair cells, or a result carried by one year. Leg B weaker than Leg A would go against the run-vs-reversion lesson and should be written up as such."
+  },
+  "demo_criteria": {
+    "min_trades": 30,
+    "min_days": 21,
+    "rationale": "Day-trading anchors (25-30 trades, 14-21 days), set at the top of both ranges. Counted per deployed symbol, either leg, calendar days. At about 2 trades per day per pair the trade count is reached in about 3 weeks, so min_days 21 binds roughly together with it and guarantees at least one month-end skip window plus a full set of weekday/Friday-close cycles. Explicitly: with a near-coin-flip per-trade signal, 30 demo trades CANNOT statistically confirm or refute the edge (expected t of about 0.4). Demo for this strategy is an execution-quality check: fills at 09:00/18:00 server and at the scheduled exits, real spread at entry versus the backtest, no cross-EA interference with month_end_fix_reversal. It is not a performance check. Set at creation; not to be adjusted after seeing results."
+  }
+}

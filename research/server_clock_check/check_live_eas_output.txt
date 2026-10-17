@@ -1,0 +1,43 @@
+== month_end_fix_reversal: weekday month-end days (last 3 calendar days) in mismatch weeks ==
+  2018: US start 2018-03-11, EU start 2018-03-25, EU end 2018-10-28, US end 2018-11-04 -> ['2018-10-29', '2018-10-30', '2018-10-31']
+  2019: US start 2019-03-10, EU start 2019-03-31, EU end 2019-10-27, US end 2019-11-03 -> ['2019-03-29', '2019-10-29', '2019-10-30', '2019-10-31']
+  2020: US start 2020-03-08, EU start 2020-03-29, EU end 2020-10-25, US end 2020-11-01 -> ['2020-10-29', '2020-10-30']
+  2021: US start 2021-03-14, EU start 2021-03-28, EU end 2021-10-31, US end 2021-11-07 -> []
+  2022: US start 2022-03-13, EU start 2022-03-27, EU end 2022-10-30, US end 2022-11-06 -> ['2022-10-31']
+  2023: US start 2023-03-12, EU start 2023-03-26, EU end 2023-10-29, US end 2023-11-05 -> ['2023-10-30', '2023-10-31']
+  2024: US start 2024-03-10, EU start 2024-03-31, EU end 2024-10-27, US end 2024-11-03 -> ['2024-03-29', '2024-10-29', '2024-10-30', '2024-10-31']
+  2025: US start 2025-03-09, EU start 2025-03-30, EU end 2025-10-26, US end 2025-11-02 -> ['2025-10-29', '2025-10-30', '2025-10-31']
+  2026: US start 2026-03-08, EU start 2026-03-29, EU end 2026-10-25, US end 2026-11-01 -> ['2026-10-29', '2026-10-30']
+  2027: US start 2027-03-14, EU start 2027-03-28, EU end 2027-10-31, US end 2027-11-07 -> []
+
+== Backtest journal trades opened on mismatch days ==
+  EURUSD.r  2024.03.29 18:02:00  buy  profit   -26.73  (validation/journal.csv)
+  EURUSD.r  2024.10.30 18:02:00  buy  profit    94.74  (validation/journal.csv)
+  EURUSD.r  2024.10.31 18:02:00  buy  profit   -24.82  (validation/journal.csv)
+  EURUSD.r: 3 of 54 trades on mismatch days, net 43.19
+  GBPUSD.r  2024.10.30 18:02:00  buy  profit    97.46  (validation/journal.csv)
+  GBPUSD.r  2024.10.31 18:02:00  buy  profit  -106.99  (validation/journal.csv)
+  GBPUSD.r  2025.10.29 18:02:00  sell profit   -53.89  (validation/journal.csv)
+  GBPUSD.r: 3 of 58 trades on mismatch days, net -63.42
+  USDJPY    2019.03.29 18:02:00  sell profit   -98.90  (USDJPY/journal.csv)
+  USDJPY    2020.10.30 18:02:00  buy  profit   103.68  (USDJPY/journal.csv)
+  USDJPY    2023.10.30 18:02:00  buy  profit  -107.31  (validation/journal.csv)
+  USDJPY    2024.10.31 18:02:00  sell profit   104.98  (validation/journal.csv)
+  USDJPY: 4 of 63 trades on mismatch days, net 2.45
+
+== gotobi: gotobi days where the month rule (03:45 Mar-Oct / 02:45 Nov-Feb) disagrees with a NY+7 clock (00:45 UTC = 03:45 under US DST, else 02:45) ==
+  2017-03-10 Fri: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2018-03-05 Mon: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2019-03-05 Tue: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2020-03-05 Thu: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2021-03-05 Fri: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2021-03-10 Wed: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2021-11-05 Fri: EA enters 02:45 server = 23:45 prev-day UTC, intended 00:45 UTC
+  2022-03-10 Thu: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2023-03-10 Fri: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2024-03-05 Tue: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2025-03-05 Wed: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2026-03-05 Thu: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2027-03-05 Fri: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2027-03-10 Wed: EA enters 03:45 server = 01:45 UTC, intended 00:45 UTC
+  2027-11-05 Fri: EA enters 02:45 server = 23:45 prev-day UTC, intended 00:45 UTC
