@@ -2,7 +2,7 @@
   "id": "day_trading/month_end_fix_reversal",
   "version": "v5",
   "category": "day_trading",
-  "origin": "MARGIN-FIT patch on top of v4, deployed live on the Windows server on 2026-10-31 and reconstructed in the repo on 2026-11-08 from its written change description (the server copy could not be pushed), so the repo source is not byte-identical to the one that ran there. Trigger: on 2026-10-30 (live account, FP Markets) both month-end entries were rejected by the broker with 'No money' -- EURUSD sell 0.15 lots and GBPUSD sell 0.12 lots. SL = fix-spike size (~7 pips that day), so a small spike produced a large risk-based lot that needed more margin than the ~$460 account had at 2% risk. v4 had no margin check (gotobi v2 does). One functional change, nothing else touched.",
+  "origin": "MARGIN-FIT patch on top of v4, deployed live on the Windows server on 2026-10-31 and brought into the repo on 2026-11-08. The Windows server could not push, so the source was first rebuilt from its change description (e701d1e) and then replaced by the EXACT live file, rebuilt from a diff the server produced against e701d1e (SHA-256 with LF endings bf40ea61b8488ad02230d8f9714f6257d264604e00fcccce9db78c4d895e3268, matches the live copy). Trigger: on 2026-10-30 (live account, FP Markets) both month-end entries were rejected by the broker with 'No money' -- EURUSD sell 0.15 lots and GBPUSD sell 0.12 lots. SL = fix-spike size (~7 pips that day), so a small spike produced a large risk-based lot that needed more margin than the ~$460 account had at 2% risk. v4 had no margin check (gotobi v2 does). One functional change, nothing else touched.",
   "symbol": "EURUSD.r",
   "timeframe": "M1",
   "thesis": "Unchanged from v1/v2: large asset managers, pension funds, and corporates rebalance currency hedges at month-end based on that month's realized equity performance, with flow concentrating in the final 2-3 trading days and peaking on the last day, specifically around the London 4pm fix. Hypothesis: fix-window spikes on these specific days are more often genuine flow-driven (and thus more reliably reversion-prone) than an average day's spike.",
@@ -57,10 +57,11 @@
   },
   "margin_fit": {
     "input": "input double InpMaxMarginUsePercent = 90.0; // one entry may use at most this % of free margin",
-    "function": "FitLotsToMargin(type, lots, price, note): OrderCalcMargin() for the risk-based lot size; if the required margin exceeds InpMaxMarginUsePercent % of ACCOUNT_MARGIN_FREE, jump to about the size that fits (margin ~ linear in volume), then step down by SYMBOL_VOLUME_STEP until it fits; if even SYMBOL_VOLUME_MIN does not fit, return 0 and skip the entry. If OrderCalcMargin fails, skip.",
-    "entry_path": "Both SELL and BUY branches in OnTick call FitLotsToMargin() after CalculateLotSize() and before trade.Sell()/trade.Buy(); the order result is checked (TRADE_RETCODE_DONE/DONE_PARTIAL/PLACED) and a failure shows 'SELL/BUY FAILED retcode N' on the panel's Last: line; every cut/skip note and failure is Print()ed to the Experts log.",
+    "function": "FitLotsToMargin(type, lots, price, note): budget = ACCOUNT_MARGIN_FREE * InpMaxMarginUsePercent/100; while(lots >= SYMBOL_VOLUME_MIN): OrderCalcMargin (on failure note 'OrderCalcMargin failed', return 0); stop if margin <= budget; else next = floor(lots*budget/margin/step)*step, lots = next<lots ? next : lots-step, NormalizeDouble(lots,2). Below the minimum lot -> note 'free margin $X too small even for <min> lots', return 0. If lots were reduced -> note 'lots cut A -> B to fit margin'.",
+    "entry_path": "Both SELL and BUY branches call FitLotsToMargin() after CalculateLotSize(); if lots > 0 the order is sent (ok = trade.Sell/Buy), tradeTakenToday = true even on failure (as v4), panel shows 'entered' or 'FAILED retcode N' plus ' -- note'; if lots == 0 with a note the panel shows 'skip entry: note'. The note is Print()ed whenever non-empty. A failed send is not Print()ed by the EA (CTrade logs it).",
     "guarantee": "Lot size can only go DOWN versus v4, never up.",
     "unchanged": "Entry trigger, spike-threshold maths, DST-mismatch fix-hour shift, SL/TP, hold time, 22:00 end-of-day close, safety stops (6 losses / 5% daily / 15% drawdown), magic 20260090, live guard.",
-    "labels": "#property version \"5.00\"; panel title 'month_end_fix_reversal v5'."
+    "labels": "#property version \"5.00\"; panel title 'month_end_fix_reversal v5'.",
+    "known_cosmetic_issue": "Header comment line 2 still says 'v4' (left as in the live file so the checksum matches); #property version and the panel say v5."
   }
 }

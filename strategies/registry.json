@@ -417,7 +417,7 @@
       {
         "status": "live",
         "date": "2026-11-08",
-        "note": "[Orchestrator 2026-11-08]: v5 brought into the repo. v5 (margin-fit patch, see v5/spec.json) was compiled and deployed live on the Windows server on 2026-10-31 on EURUSD.r + GBPUSD.r M15, replacing v4, with RiskPercent lowered 2.0 -> 1.0 at the user's request (profile backup Default-backup-20261031-v4-risk2), but that server could not push. The repo source was reconstructed on the dev PC from the server session's written change description and compiled 0 errors, 0 warnings; it is not byte-identical to the server's copy. Not yet backtested; first live chance 2026-11-30."
+        "note": "[Orchestrator 2026-11-08]: v5 brought into the repo. v5 (margin-fit patch, see v5/spec.json) was compiled and deployed live on the Windows server on 2026-10-31 on EURUSD.r + GBPUSD.r M15, replacing v4, with RiskPercent lowered 2.0 -> 1.0 at the user's request (profile backup Default-backup-20261031-v4-risk2), but that server could not push. The repo source was first rebuilt from the server's change description (e701d1e), then replaced the same day by the EXACT live file, rebuilt from a diff the server produced (SHA-256 LF bf40ea61... matches the live copy); compiled 0 errors, 0 warnings. Not yet backtested; first live chance 2026-11-30."
       }
     ]
   },

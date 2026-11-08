@@ -1,5 +1,5 @@
 //+------------------------------------------------------------------+
-//| month_end_fix_reversal v5 - fade the WM/Reuters 4pm London FX fix  |
+//| month_end_fix_reversal v4 - fade the WM/Reuters 4pm London FX fix  |
 //| spike, restricted to the final trading days of the month, day      |
 //| trading only.                                                       |
 //|                                                                      |
@@ -73,24 +73,17 @@
 //|     ANY position on the symbol, including other EAs'/manual ones.    |
 //| Thesis, trigger, thresholds, sizing, SL/TP, ledger, magic unchanged. |
 //|                                                                      |
-//| v5 (2026-10-31) margin-fit patch on top of v4, one change only:      |
-//|  On 2026-10-30 both live month-end entries were rejected by the      |
-//|  broker with "No money" (EURUSD sell 0.15, GBPUSD sell 0.12): SL =   |
-//|  spike size (~7 pips that day), so a small spike gave a large risk-  |
-//|  based lot needing more margin than the account had. v4 had no       |
-//|  margin check (gotobi v2 does). New input InpMaxMarginUsePercent=90  |
-//|  and FitLotsToMargin(): after CalculateLotSize(), OrderCalcMargin()  |
-//|  is compared with InpMaxMarginUsePercent % of ACCOUNT_MARGIN_FREE;   |
-//|  if too big the lots are cut (jump to ~fitting size, then step down  |
-//|  by SYMBOL_VOLUME_STEP); if even SYMBOL_VOLUME_MIN does not fit, the |
-//|  entry is skipped. The order result is checked (panel shows          |
-//|  "SELL/BUY FAILED retcode N") and cut/skip notes are Print()ed.      |
-//|  Lot size can only go DOWN versus v4, never up. Trigger, thresholds, |
-//|  DST shift, SL/TP, hold, 22:00 close, safety stops, magic and live   |
-//|  guard are unchanged.                                                |
-//|  Reconstructed in the repo on 2026-11-08 from the written change     |
-//|  description of the v5 deployed on the Windows server on 2026-10-31  |
-//|  (that copy could not be pushed), so not byte-identical to it.       |
+//| v5 (2026-10-31) MARGIN-SAFETY patch on top of v4, one change only:   |
+//|  Live 2026-10-30: both entries (EURUSD 0.15, GBPUSD 0.12 lots) were  |
+//|  rejected by the broker with "No money" -- risk-based sizing on a    |
+//|  small spike (tight SL) asked for more margin than the account had.  |
+//|  Before every order, FitLotsToMargin() now uses OrderCalcMargin() to |
+//|  shrink the lot (in volume-step increments) until the required       |
+//|  margin fits within InpMaxMarginUsePercent of free margin; if even   |
+//|  the broker minimum lot does not fit, the entry is skipped and       |
+//|  logged. Lots can only go DOWN versus v4 (risk per trade <= v4's),   |
+//|  never up. Failed order sends are now logged with the retcode.       |
+//| Thesis, trigger, thresholds, SL/TP, timing, ledger, magic unchanged. |
 //+------------------------------------------------------------------+
 #property copyright "month_end_fix_reversal"
 #property version   "5.00"
@@ -122,7 +115,7 @@ input double RiskPercent       = 1.0;
 input double MaxSpreadPips     = 3.0;
 input int    EndOfDayHour      = 22;
 input int    MagicNumber       = 20260090;
-input double InpMaxMarginUsePercent = 90.0; // v5: one entry may use at most this % of free margin
+input double InpMaxMarginUsePercent = 90.0; // v5: never use more than this % of free margin for one entry
 
 // -- Safety rules (always on) -- backfilled in v3, copied from gotobi/v1 --
 input int    InpMaxConsecutiveLosses   = 6;   // pause after this many losses in a row
@@ -441,61 +434,37 @@ double CalculateLotSize(double slDistance)
    return lots;
 }
 
-// -- v5: fit the risk-based lot size to free margin ---------------------------
-// Added after the 2026-10-30 "No money" rejections. Returns the same or FEWER
-// lots than it is given (never more), or 0 if even the broker minimum lot
-// does not fit within InpMaxMarginUsePercent % of free margin. `note` is set
-// whenever something was cut or skipped, for the Experts log and the panel.
+// v5: shrink lots until the order's margin fits in free margin; 0 = cannot fit even the minimum lot.
 double FitLotsToMargin(ENUM_ORDER_TYPE type, double lots, double price, string &note)
 {
-   note = "";
-   double step       = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-   double minLot     = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
-   double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
-   double budget     = freeMargin * InpMaxMarginUsePercent / 100.0;
-   double margin     = 0.0;
+   double step   = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double budget = AccountInfoDouble(ACCOUNT_MARGIN_FREE) * InpMaxMarginUsePercent / 100.0;
+   double wanted = lots;
+   double margin = 0;
 
-   if(!OrderCalcMargin(type, _Symbol, lots, price, margin))
-   {
-      note = "OrderCalcMargin failed (error " + IntegerToString(GetLastError()) + "), entry skipped";
-      return 0.0;
-   }
-   if(margin <= budget)
-      return lots;
-
-   double original = lots;
-   // Margin scales ~linearly with volume: jump to about the size that fits,
-   // then step down by the volume step until it really fits.
-   if(margin > 0.0)
-      lots = MathFloor((lots * budget / margin) / step) * step;
-   lots = MathMin(lots, original - step);
-   if(lots < minLot)
-      lots = minLot;
-
-   while(lots >= minLot - step * 0.5)
+   while(lots >= minLot)
    {
       if(!OrderCalcMargin(type, _Symbol, lots, price, margin))
       {
-         note = "OrderCalcMargin failed (error " + IntegerToString(GetLastError()) + "), entry skipped";
+         note = "OrderCalcMargin failed";
          return 0.0;
       }
       if(margin <= budget)
-      {
-         note = "lots cut " + DoubleToString(original, 2) + " -> " + DoubleToString(lots, 2) + " to fit margin";
-         return NormalizeDouble(lots, 8);
-      }
-      lots = NormalizeDouble(lots - step, 8);
+         break;
+      // jump close to the fitting size, then step down to absorb rounding
+      double next = MathFloor(lots * budget / margin / step) * step;
+      lots = (next < lots) ? next : lots - step;
+      lots = NormalizeDouble(lots, 2);
    }
 
-   note = "free margin $" + DoubleToString(freeMargin, 2) + " too small even for " + DoubleToString(minLot, 2) + " lots, entry skipped";
-   return 0.0;
-}
-
-// v5: true when the last CTrade request was accepted by the trade server.
-bool TradeAccepted(bool sent)
-{
-   uint rc = trade.ResultRetcode();
-   return sent && (rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_DONE_PARTIAL || rc == TRADE_RETCODE_PLACED);
+   if(lots < minLot)
+   {
+      note = StringFormat("free margin $%s too small even for %s lots", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2), DoubleToString(minLot, 2));
+      return 0.0;
+   }
+   note = (lots < wanted) ? StringFormat("lots cut %s -> %s to fit margin", DoubleToString(wanted, 2), DoubleToString(lots, 2)) : "";
+   return lots;
 }
 
 // -- Chart status panel (added in v3, per .claude/agents/ea-coder.md) --------
@@ -707,27 +676,19 @@ void OnTick()
          double sl = bid + slDistance;
          double tp = bid - tpDistance;
          double lots = CalculateLotSize(sl - bid);
+         string note = "";
+         if(lots > 0)
+            lots = FitLotsToMargin(ORDER_TYPE_SELL, lots, bid, note);
          if(lots > 0)
          {
-            string marginNote;
-            lots = FitLotsToMargin(ORDER_TYPE_SELL, lots, bid, marginNote);   // v5
-            if(marginNote != "")
-               Print("month_end_fix_reversal v5 ", _Symbol, " SELL: ", marginNote);
-            if(lots <= 0)
-               g_lastAction = TimeToString(now, TIME_MINUTES) + " skip entry: " + marginNote;
-            else
-            {
-               bool sent = trade.Sell(lots, _Symbol, bid, sl, tp);
-               tradeTakenToday = true;
-               if(TradeAccepted(sent))
-                  g_lastAction = TimeToString(now, TIME_MINUTES) + " SELL entered (fade up-spike)" + (marginNote != "" ? " [" + marginNote + "]" : "");
-               else
-               {
-                  g_lastAction = TimeToString(now, TIME_MINUTES) + " SELL FAILED retcode " + IntegerToString(trade.ResultRetcode());
-                  Print("month_end_fix_reversal v5 ", _Symbol, ": SELL ", DoubleToString(lots, 2), " FAILED retcode ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
-               }
-            }
+            bool ok = trade.Sell(lots, _Symbol, bid, sl, tp);
+            tradeTakenToday = true;
+            g_lastAction = TimeToString(now, TIME_MINUTES) + (ok ? " SELL entered (fade up-spike)" : " SELL FAILED retcode " + IntegerToString(trade.ResultRetcode())) + (note != "" ? " -- " + note : "");
          }
+         else if(note != "")
+            g_lastAction = TimeToString(now, TIME_MINUTES) + " skip entry: " + note;
+         if(note != "")
+            Print("month_end_fix_reversal ", _Symbol, ": ", note);
       }
       else
       {
@@ -735,27 +696,19 @@ void OnTick()
          double sl = ask - slDistance;
          double tp = ask + tpDistance;
          double lots = CalculateLotSize(ask - sl);
+         string note = "";
+         if(lots > 0)
+            lots = FitLotsToMargin(ORDER_TYPE_BUY, lots, ask, note);
          if(lots > 0)
          {
-            string marginNote;
-            lots = FitLotsToMargin(ORDER_TYPE_BUY, lots, ask, marginNote);   // v5
-            if(marginNote != "")
-               Print("month_end_fix_reversal v5 ", _Symbol, " BUY: ", marginNote);
-            if(lots <= 0)
-               g_lastAction = TimeToString(now, TIME_MINUTES) + " skip entry: " + marginNote;
-            else
-            {
-               bool sent = trade.Buy(lots, _Symbol, ask, sl, tp);
-               tradeTakenToday = true;
-               if(TradeAccepted(sent))
-                  g_lastAction = TimeToString(now, TIME_MINUTES) + " BUY entered (fade down-spike)" + (marginNote != "" ? " [" + marginNote + "]" : "");
-               else
-               {
-                  g_lastAction = TimeToString(now, TIME_MINUTES) + " BUY FAILED retcode " + IntegerToString(trade.ResultRetcode());
-                  Print("month_end_fix_reversal v5 ", _Symbol, ": BUY ", DoubleToString(lots, 2), " FAILED retcode ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
-               }
-            }
+            bool ok = trade.Buy(lots, _Symbol, ask, sl, tp);
+            tradeTakenToday = true;
+            g_lastAction = TimeToString(now, TIME_MINUTES) + (ok ? " BUY entered (fade down-spike)" : " BUY FAILED retcode " + IntegerToString(trade.ResultRetcode())) + (note != "" ? " -- " + note : "");
          }
+         else if(note != "")
+            g_lastAction = TimeToString(now, TIME_MINUTES) + " skip entry: " + note;
+         if(note != "")
+            Print("month_end_fix_reversal ", _Symbol, ": ", note);
       }
       RenderPanel();
       return;
