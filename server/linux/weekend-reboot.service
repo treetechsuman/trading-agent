@@ -1,0 +1,7 @@
+# /etc/systemd/system/weekend-reboot.service
+[Unit]
+Description=Reboot if security updates need it (weekend, markets closed)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'if [ -f /var/run/reboot-required ]; then /sbin/shutdown -r +1 "weekly security-update reboot"; fi'

@@ -1,0 +1,24 @@
+# /etc/systemd/system/mt5.service
+# Starts MT5 (under Wine) on the VNC desktop :1 at boot, and restarts it
+# if it exits or crashes.
+[Unit]
+Description=MetaTrader 5 (Wine) on VNC display :1
+After=network-online.target tigervncserver@:1.service
+Wants=network-online.target
+Requires=tigervncserver@:1.service
+
+[Service]
+User=trader
+Environment=DISPLAY=:1
+Environment=WINEPREFIX=/home/trader/.mt5
+Environment=WINEDEBUG=-all
+# wait until the VNC X server socket exists
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do [ -S /tmp/.X11-unix/X1 ] && exit 0; sleep 1; done; exit 1'
+# start-mt5.sh holds the Windows path to terminal64.exe
+ExecStart=/home/trader/start-mt5.sh
+Restart=always
+RestartSec=20
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

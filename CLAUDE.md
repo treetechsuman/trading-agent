@@ -164,6 +164,33 @@ this git remote (`github.com/treetechsuman/trading-agent`) — see
 - Registry statuses `live`/`demo` (set by the server's live-manager) are
   terminal from this machine's point of view — don't treat them as
   something to re-dispatch or redeploy locally.
+- **The live server is moving to Linux (as of 2026-11-08)**: a Vultr
+  Ubuntu 24.04 server (`mt5-linux`, Sydney) running FP Markets MT5 under
+  Wine, replacing the Vultr Windows server. **If you are running on that
+  Linux server, read `LINUX_SERVER.md` first**: there is no `tasklist` /
+  RDP there; MT5 runs as the systemd service `mt5`
+  (`sudo -n systemctl stop|start|restart mt5` work without a password),
+  `~/mt5log.sh` shows the terminal log, the MT5 install is portable under
+  `~/.mt5/drive_c/Program Files/FP Markets MetaTrader 5/`, and
+  MetaEditor's command-line compile does not work under Wine yet (compile
+  on the Windows dev PC and copy the `.ex5`). **Switched over on
+  2026-11-08 10:11 UTC**: the Linux server has Algo Trading ON and is the
+  live one. The old Windows server stays up with Algo Trading OFF during
+  a few days' soak, then gets deleted (`LINUX_SERVER.md` §12).
+- **The Linux server is managed from this dev PC over SSH** (user's
+  decision, 2026-11-08). No separate Claude runs on it. Any session here
+  can reach it:
+  `C:\Windows\System32\OpenSSH\ssh.exe trader@45.77.236.85 "<cmd>"`.
+  Use Windows OpenSSH, not Git Bash's `ssh`; the key is held by the
+  Windows ssh-agent. The connection table, everyday commands and rules are
+  in `LINUX_SERVER.md` → "Quick reference".
+  - **`/trading-report`** gives the server's trades, P&L, MT5 status,
+    restarts and health. It is read-only.
+  - Stop MT5 there only with `~/stop-mt5.sh`.
+  - Managing that server is not the same as running live-manager on this
+    machine. The rule above (never attach or start an EA in *this* PC's
+    terminal) still holds. Changing the live server's EAs or Algo Trading
+    still needs the user's explicit word each time.
 - **This dev machine is not actually free of live activity — check
   `tasklist` for `terminal64.exe` before every launch, even a harmless
   Tester-only one.** Discovered 2026-09-26: the user separately runs a

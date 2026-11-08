@@ -1,0 +1,5 @@
+# /etc/sudoers.d/trader-mt5  (mode 0440)
+# Lets 'trader' (and Claude Code running as trader) manage ONLY the MT5 and
+# VNC services and reboot, without typing the sudo password. Everything else
+# still needs the password.
+trader ALL=(root) NOPASSWD: /usr/bin/systemctl start mt5, /usr/bin/systemctl stop mt5, /usr/bin/systemctl restart mt5, /usr/bin/systemctl start tigervncserver@\:1, /usr/bin/systemctl stop tigervncserver@\:1, /usr/bin/systemctl restart tigervncserver@\:1, /usr/sbin/reboot

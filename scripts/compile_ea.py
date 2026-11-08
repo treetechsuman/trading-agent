@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from common import METAEDITOR_EXE, data_expert_dir, run, version_dir_parts
+from wine_compat import windows_path, wrap_cmd
 
 
 def compile_strategy(version_dir: Path) -> bool:
@@ -35,11 +36,12 @@ def compile_strategy(version_dir: Path) -> bool:
     if log_path.exists():
         log_path.unlink()
 
-    cmd = [
+    # On Linux this becomes `wine MetaEditor64.exe /compile:C:\... /log:C:\...`
+    cmd = wrap_cmd([
         str(METAEDITOR_EXE),
-        f"/compile:{dest_source}",
-        f"/log:{log_path}",
-    ]
+        f"/compile:{windows_path(dest_source)}",
+        f"/log:{windows_path(log_path)}",
+    ])
     print(f"Running: {' '.join(cmd)}")
     proc = run(cmd, timeout=180)
 

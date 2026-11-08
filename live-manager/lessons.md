@@ -273,3 +273,49 @@ RDP login: title `month_end_fix_reversal v4`, `DST mismatch day: no`,
 **Reminder:** the spike history and safety ledger are in memory only, so
 every restart empties them. That's fine this time (8 weekday samples before
 Oct 29), but avoid restarts in the last ~5 weekdays before a month-end.
+
+## 2026-11-08 — Linux server (Wine) built; charts staged with Algo Trading OFF
+
+New live server `mt5-linux` (Vultr Ubuntu 24.04, Sydney, 45.77.236.85)
+replacing the Windows server; full procedure in `LINUX_SERVER.md`. The
+Windows server keeps trading until the user switches over.
+
+- **Use a freshly downloaded FP Markets installer.** A Jan-2025
+  `fpmarkets5setup.exe` installed fine under Wine but every login failed
+  with `Invalid account`; a fresh download logged in first time.
+- **Investor vs Master password.** The Client Portal "Account Password"
+  page can change the Investor password; logging in with it shows
+  `trading has been disabled - investor mode`. EAs need the Master.
+- **Latency is unchanged by the move**: MT5 reaches FP Markets through a
+  Sydney access point (AWS) and reports ~283 ms to the trade server (dev
+  PC 302 ms), consistent with the trade server being in London.
+- **MetaEditor CLI compile does not work under Wine** (exits instantly, no
+  .ex5/log). Compile on the dev PC and copy the .ex5 (build 5830 .ex5 runs
+  on build 6308).
+- **Charts staged (Algo Trading OFF, `[Experts] Enabled=0`)**: USDJPY.r M15
+  gotobi v2 (InpRiskPercent=2.0, magic 20260030); EURUSD.r + GBPUSD.r M15
+  month_end_fix_reversal **v5** (RiskPercent=1.0, magic 20260090), all with
+  InpAllowLiveAccount=true. Journal: all 3 `loaded successfully`, account
+  synced, 0 positions. v5 had never been pushed from the Windows server; it
+  was brought into the repo as the exact live file (commit b56f2e8),
+  compiled on the dev PC and swapped in (charts were first staged with v4).
+- Never run the same EAs with Algo Trading ON on both servers: every
+  trade would be doubled. Switch-over = old server Algo Trading off (or
+  EAs removed) first, then press Algo Trading on the Linux server.
+- Avoid restarts in the last ~5 weekdays before a month-end (in-memory
+  spike history), and on gotobi days around the 02:45 server entry.
+- **Update, same day — switched over at 10:11 UTC.** The user confirmed the old
+  Windows server's Algo Trading was off. Then `[Experts] Enabled=1` (with
+  Account=1, Profile=1, as on the old server) and an MT5 restart. All EAs loaded,
+  and the Algo Trading button is ON. The Linux server is now the live one.
+- **Stop MT5 only with `~/stop-mt5.sh`.** Running `systemctl stop mt5` straight
+  after `wine taskkill` killed MT5 while it was saving its profile and left
+  `chart01.chr` 0 bytes, so gotobi did not load. The script waits for the
+  process to exit first. `setup_charts.py` now uses the first intact chart file as
+  its template. To check whether MT5 is running, use
+  `pgrep -f 'terminal6[4]\.exe'`. A plain pattern matches the SSH command
+  itself, and the Wine process name is `main`, not `terminal64.exe`.
+- **Monitoring:** chart04 runs `account_reporter` (read-only, never trades). It
+  writes `MQL5/Files/EAFactory_status.json` every 60 s. `/trading-report` on the
+  dev PC reads it, together with the MT5 logs and systemd, over SSH. The server is
+  managed from the dev PC; no Claude runs on the server.
