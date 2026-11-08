@@ -83,6 +83,32 @@ def fmt(ts: datetime) -> str:
     return ts.strftime("%a %d %b %H:%M")
 
 
+def us_dst(d) -> bool:
+    """US daylight saving (2nd Sunday of March to 1st Sunday of November), by date.
+
+    FP Markets' server clock is UTC+2, or UTC+3 during US DST (New York close).
+    Checked on 2026-11-08: +2.00 h, and month_end's "EU/US DST mismatch" logic relies on this.
+    """
+    def nth_sunday(year, month, n):
+        first = datetime(year, month, 1)
+        return first.day + (6 - first.weekday()) % 7 + 7 * (n - 1)
+    start = (3, nth_sunday(d.year, 3, 2))
+    end = (11, nth_sunday(d.year, 11, 1))
+    return start <= (d.month, d.day) < end
+
+
+def to_utc(server_ts: int, status: dict) -> datetime:
+    """Broker server timestamp -> UTC, using the offset in force on THAT date.
+
+    The status file has today's offset only. Older deals from the other DST
+    season would otherwise be shown 1 h off.
+    """
+    now_off = status["server_gmt_offset_sec"]
+    base = now_off - (3600 if us_dst(datetime.now(timezone.utc)) else 0)
+    day = datetime.fromtimestamp(server_ts, timezone.utc)  # naive server-local date
+    return datetime.fromtimestamp(server_ts - base - (3600 if us_dst(day) else 0), timezone.utc)
+
+
 def section(title: str) -> None:
     print(f"\n== {title} ==")
 
@@ -243,7 +269,7 @@ def main() -> None:
     section("OPEN POSITIONS")
     if status and status["positions"]:
         for p in status["positions"]:
-            opened = datetime.fromtimestamp(p["time"] - status["server_gmt_offset_sec"], timezone.utc)
+            opened = to_utc(p["time"], status)
             print(f"  {p['symbol']:9} {p['type']:4} {p['volume']:.2f} @ {p['open_price']}  SL {p['sl']} TP {p['tp']}  "
                   f"P/L {p['profit'] + p['swap']:+.2f}  {MAGICS.get(p['magic'], 'magic ' + str(p['magic']))}  opened {fmt(opened)}")
     else:
@@ -251,7 +277,7 @@ def main() -> None:
 
     section("TRADES")
     if status:
-        off = status["server_gmt_offset_sec"]
+        st = status
         positions = defaultdict(list)
         cash = []
         for d in status["deals"]:
@@ -267,8 +293,8 @@ def main() -> None:
             ins = [d for d in deals if d["entry"] == "in"]
             magic = (ins or deals)[0]["magic"]
             net = sum(d["profit"] + d["commission"] + d["swap"] for d in deals)
-            close_t = datetime.fromtimestamp(max(d["time"] for d in outs) - off, timezone.utc)
-            open_t = datetime.fromtimestamp(min(d["time"] for d in deals) - off, timezone.utc)
+            close_t = to_utc(max(d["time"] for d in outs), st)
+            open_t = to_utc(min(d["time"] for d in deals), st)
             closed.append({"magic": magic, "net": net, "close": close_t, "open": open_t,
                            "symbol": deals[0]["symbol"], "side": (ins or deals)[0]["type"],
                            "volume": (ins or deals)[0]["volume"]})
@@ -294,7 +320,7 @@ def main() -> None:
         dep = [d for d in cash if d["type"] == "balance"]
         if dep:
             print(f"Deposits/withdrawals: {len(dep)}, total {sum(d['profit'] for d in dep):+.2f} "
-                  f"(last {fmt(datetime.fromtimestamp(dep[-1]['time'] - off, timezone.utc))})")
+                  f"(last {fmt(to_utc(dep[-1]['time'], st))})")
         # Kill-switch reference: equity vs the highest balance since the first EA trade.
         # Walk balance backwards from today's balance so old manual history is ignored.
         deals_sorted = sorted(status["deals"], key=lambda d: d["time"])
@@ -308,7 +334,7 @@ def main() -> None:
                 bal -= d["profit"] + d["commission"] + d["swap"]
                 peak = max(peak, bal)
             dd = (peak - status["account"]["equity"]) / peak * 100 if peak > 0 else 0.0
-            first = datetime.fromtimestamp(ea_times[0] - off, timezone.utc)
+            first = to_utc(ea_times[0], st)
             print(f"Equity vs highest balance since EAs started ({first:%d %b %Y}): {dd:.1f}% below peak {peak:.2f} "
                   "(EA safety stop at 15%)")
             if dd >= 10:
