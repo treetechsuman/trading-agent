@@ -1,0 +1,66 @@
+{
+  "id": "day_trading/month_end_fix_reversal",
+  "version": "v5",
+  "category": "day_trading",
+  "origin": "MARGIN-FIT patch on top of v4, deployed live on the Windows server on 2026-10-31 and reconstructed in the repo on 2026-11-08 from its written change description (the server copy could not be pushed), so the repo source is not byte-identical to the one that ran there. Trigger: on 2026-10-30 (live account, FP Markets) both month-end entries were rejected by the broker with 'No money' -- EURUSD sell 0.15 lots and GBPUSD sell 0.12 lots. SL = fix-spike size (~7 pips that day), so a small spike produced a large risk-based lot that needed more margin than the ~$460 account had at 2% risk. v4 had no margin check (gotobi v2 does). One functional change, nothing else touched.",
+  "symbol": "EURUSD.r",
+  "timeframe": "M1",
+  "thesis": "Unchanged from v1/v2: large asset managers, pension funds, and corporates rebalance currency hedges at month-end based on that month's realized equity performance, with flow concentrating in the final 2-3 trading days and peaking on the last day, specifically around the London 4pm fix. Hypothesis: fix-window spikes on these specific days are more often genuine flow-driven (and thus more reliably reversion-prone) than an average day's spike.",
+  "entry": {
+    "calendar_filter": "only trade if today is within TradeLastNDaysOfMonth (3 default) calendar days of month-end",
+    "measurement_window": "Fix time = 18:00 server normally, 19:00 server on mismatch days (see dst_fix); window = fix-5min to fix+2min (15:55-16:02 London on every day). History feed uses the same per-day fix time.",
+    "trigger": "fix-window move >= max(MinSpikeSizePipsFloor, MinSpikeVsAvgMultiplier * rolling average of the fix window's own recent history, fed every day regardless of the calendar filter)",
+    "side": "fade -- sell if price rose into the fix, buy if it fell",
+    "safety_gate_added_in_v3": "immediately before the threshold/spread/sizing checks, entry is additionally suppressed if monthlyHaltActive || dailyHaltActive || drawdownHaltActive -- see safety_ledger below. Never changes which spikes qualify or how size/SL/TP are computed when a trade IS allowed through."
+  },
+  "stop_loss": "spike size * SLMultiplier (1.0 default) -- unchanged from v1/v2",
+  "take_profit": "spike size * TPMultiplier (1.0 default) -- unchanged from v1/v2",
+  "exit": {
+    "rule": "market close 30 minutes after the measurement window closes if SL/TP not hit, or end-of-day flat at 22:00 server -- unchanged; both closes now act only on this EA's own position (magic + symbol), by ticket."
+  },
+  "position_sizing": {
+    "risk_percent_of_equity": 1.0,
+    "note": "CalculateLotSize() unchanged from v1-v4; v5 then caps the result with FitLotsToMargin(). Live RiskPercent lowered 2.0 -> 1.0 on both charts on 2026-10-31 at the user's request."
+  },
+  "tunable_parameters_to_sweep": "Unchanged from v1/v2 -- not the subject of this version. TradeLastNDaysOfMonth (3 default), MinSpikeVsAvgMultiplier -- not yet swept.",
+  "safety_ledger": {
+    "change": "Backfilled the full standard safety ledger, copied line-for-line from strategies/day_trading/gotobi/v1/strategy.mq5: input int InpMaxConsecutiveLosses=6 + consecutiveLosses counter incremented/reset in a new OnTradeTransaction() handler keyed on MagicNumber+_Symbol+DEAL_ENTRY_OUT+profit sign; monthlyHaltActive+haltSetYear+haltSetMonth+CheckMonthlyHaltResume() (halt lifts on the first day of the next calendar month, same cadence rationale as gotobi since this strategy also evaluates every month, just with a narrower few-day window inside it); input double InpDailyLossStopPercent=5.0 + dailyStartBalance (captured in ResetDayState(), which already ran once per day) + dailyHaltActive + UpdateDailyLossHalt(); input double InpMaxDrawdownStopPercent=15.0 + balancePeak + drawdownHaltActive + UpdateDrawdownHalt(); input bool InpResetLedgerNow=false and InpResetDrawdownStop=false for manual clearing. All three halt flags are OR'd into a single gate checked in OnTick() immediately before v2's existing threshold/spread/sizing checks in the entry path -- structurally identical placement to gotobi's own 'if(monthlyHaltActive || dailyHaltActive || drawdownHaltActive) return;' gate.",
+    "scope": "Can only SUPPRESS a trade v2 would have taken (any trade that would open while a halt is active this version now skips it) -- cannot add a trade v2 would not have taken. Zero entry/exit/threshold/sizing/timing logic changed otherwise.",
+    "backtest_impact": "NOT a no-op, unlike v2's InpAllowLiveAccount patch. Because this strategy has historically strung together consecutive losing months in its own backtest history (per v1/v2 review.md), the consecutive-loss/daily-loss/drawdown gates are expected to fire at least occasionally within the existing in-sample/out-of-sample windows, which can only reduce v3's total trade count and shift PF/drawdown numbers relative to v2 -- possibly for the better (removing tail-risk clusters) or the effective PF could look different either way. v2's review.md/VERDICT.md numbers must NOT be assumed to carry over -- this version requires a fresh in-sample backtest (and, if it still looks live-worthy, a fresh out-of-sample validation) before any live/demo status decision is made on it.",
+    "requested_by": "Orchestrator/user, 2026-09-23, closing the gap identified in ea-coder/lessons.md's month_end_fix_reversal/v2 entry (v2 only ever added the InpAllowLiveAccount gate, not the rest of the standard ledger)."
+  },
+  "chart_panel": {
+    "change": "Added the Comment()-based on-chart status panel required by .claude/agents/ea-coder.md's 'Chart status panel' convention: identity/DEMO-LIVE line, Validated: line (input string InpValidatedSymbols, comma-separated, seeded from this spec's \"symbol\" field), Risk/trade + DD-from-peak line, Status line (RUNNING / HALTED:<reason> / INIT FAILED:<reason> / WARNING: SYMBOL NOT VALIDATED FOR THIS EA), Safety: losses X/Y line, Position line, Last: line, then an EA-specific block showing today's month-end-window eligibility (day X of month vs TradeLastNDaysOfMonth), the fix window's start/end and scheduled exit clock times, and the spike-history state (spikeHistoryCount/SpikeHistoryWindow samples, current rolling average, current adaptive threshold). Refreshed every OnTick() and via a 1-second OnTimer(); rendered before the INIT_FAILED return on the live-account guard too; cleared with Comment(\"\") in OnDeinit().",
+    "scope": "Display only -- reads existing/new state variables, never influences any trading decision."
+  },
+  "demo_criteria": {
+    "min_trades": 20,
+    "min_days": 60,
+    "rationale": "Unchanged from v1/v2. Low frequency by design (only ~3 trading days/month qualify at all, further filtered by the spike threshold, now also by the new safety halts) -- similar low-frequency profile to gotobi, anchor adjusted accordingly rather than the standard day_trading category anchor."
+  },
+  "dst_fix": {
+    "rule": "A date is a mismatch day if (date >= 2nd Sunday of March AND date < last Sunday of March) OR (date >= last Sunday of October AND date < 1st Sunday of November), evaluated on the server calendar date from TimeCurrent(). Never use TimeGMT() (not simulated in the Tester).",
+    "effect": "On mismatch days the fix hour is FixHourServer + 1 (19:00). Everything derived from fixTime (windowStart, windowEnd, scheduledExitTime) shifts with it. EndOfDayHour=22 is unchanged.",
+    "input": "input bool InpDstMismatchShift = true; // false reproduces v3's flat 18:00 timing (diagnostic only)",
+    "panel": "EA block shows 'DST mismatch day: YES/no' next to the fix window line; panel title says v4.",
+    "verification": "Backtester confirms from the journal that every trade on a mismatch date opened at 19:02 server and every other trade at 18:02 server; and that with InpDstMismatchShift=false the EURUSD.r in-sample result matches v3 exactly."
+  },
+  "position_isolation": {
+    "bug": "v3 line ~473: 'if(HourOf(now) >= EndOfDayHour && PositionSelect(_Symbol)) trade.PositionClose(_Symbol);' closes ANY position on the symbol after 22:00 server, including other EAs' or manual positions, with no magic check. Lines ~382/~481 use PositionSelect(_Symbol), which on a hedging account selects an arbitrary position on the symbol, so another EA's position can hide this EA's own (missed scheduled exit) or be read as ours.",
+    "fix": "Replace every PositionSelect(_Symbol) with a helper that loops PositionsTotal()/PositionGetTicket(i) and returns the ticket of the first position with POSITION_SYMBOL == _Symbol AND POSITION_MAGIC == MagicNumber (0 if none). Close by ticket (trade.PositionClose(ticket)). Apply to the end-of-day close, the scheduled exit, the 'already in a position' check, and the panel.",
+    "backtest_impact": "None expected in single-EA backtests (only one EA, one position at a time)."
+  },
+  "backtest_plan": {
+    "status": "NOT YET BACKTESTED (same as when deployed on 2026-10-31).",
+    "expectation": "Identical to v4 in a $10,000 backtest unless an entry would exceed 90% of free margin; differences only appear on small accounts / small spikes.",
+    "first_live_chance": "Mon 2026-11-30, fix 16:00 UTC (18:00 server). Afterwards check the Experts log for 'lots cut' / 'entry skipped' / 'FAILED retcode' lines and confirm the fill."
+  },
+  "margin_fit": {
+    "input": "input double InpMaxMarginUsePercent = 90.0; // one entry may use at most this % of free margin",
+    "function": "FitLotsToMargin(type, lots, price, note): OrderCalcMargin() for the risk-based lot size; if the required margin exceeds InpMaxMarginUsePercent % of ACCOUNT_MARGIN_FREE, jump to about the size that fits (margin ~ linear in volume), then step down by SYMBOL_VOLUME_STEP until it fits; if even SYMBOL_VOLUME_MIN does not fit, return 0 and skip the entry. If OrderCalcMargin fails, skip.",
+    "entry_path": "Both SELL and BUY branches in OnTick call FitLotsToMargin() after CalculateLotSize() and before trade.Sell()/trade.Buy(); the order result is checked (TRADE_RETCODE_DONE/DONE_PARTIAL/PLACED) and a failure shows 'SELL/BUY FAILED retcode N' on the panel's Last: line; every cut/skip note and failure is Print()ed to the Experts log.",
+    "guarantee": "Lot size can only go DOWN versus v4, never up.",
+    "unchanged": "Entry trigger, spike-threshold maths, DST-mismatch fix-hour shift, SL/TP, hold time, 22:00 end-of-day close, safety stops (6 losses / 5% daily / 15% drawdown), magic 20260090, live guard.",
+    "labels": "#property version \"5.00\"; panel title 'month_end_fix_reversal v5'."
+  }
+}
